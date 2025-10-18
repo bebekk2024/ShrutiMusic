@@ -19,6 +19,7 @@ import logging
 from typing import List
 
 from pyrogram import filters, errors, enums
+from pyrogram.errors import RPCError, Forbidden
 from pyrogram.types import Message
 
 from ShrutiMusic import app, LOGGER
@@ -76,6 +77,30 @@ async def _get_list(chat_id: int, field: str) -> List:
     return doc.get(field, [])
 
 
+# --- Minimal safe delete helper (new) ----------------
+async def _safe_delete(client, chat_id: int, message_id: int, silent: bool = True):
+    """
+    Delete a message using client.delete_messages and log common errors.
+    If silent=True, swallow errors; otherwise re-raise.
+    """
+    try:
+        await client.delete_messages(chat_id, message_id)
+        LOGGER.debug("Deleted message %s in chat %s", message_id, chat_id)
+    except Forbidden as e:
+        LOGGER.warning("Cannot delete message %s in %s: forbidden (%s)", message_id, chat_id, e)
+        if not silent:
+            raise
+    except RPCError as e:
+        LOGGER.warning("RPCError deleting message %s in %s: %s", message_id, chat_id, e)
+        if not silent:
+            raise
+    except Exception as e:
+        LOGGER.exception("Unexpected error deleting message %s in %s: %s", message_id, chat_id, e)
+        if not silent:
+            raise
+# ----------------------------------------------------
+
+
 # Global config helpers
 async def _get_global_config() -> dict:
     cfg = await CFG.find_one({"_id": "settings"})
@@ -126,8 +151,11 @@ async def antigcst_toggle(client, message: Message, _):
 
     only_owner = cfg.get("only_owner_toggle", False)
     sudo_override = cfg.get("sudo_override", True)
-    user_id = message.from_user.id
-    user_mention = message.from_user.mention
+
+    # safe access to from_user
+    user = getattr(message, "from_user", None)
+    user_id = getattr(user, "id", None)
+    user_mention = getattr(user, "mention", "Anonym")
 
     if only_owner:
         # owner always allowed
@@ -184,8 +212,12 @@ async def antigcst_mode(client, message: Message, _):
         cfg = {"only_owner_toggle": False, "sudo_override": True}
     only_owner = cfg.get("only_owner_toggle", False)
     sudo_override = cfg.get("sudo_override", True)
-    user_id = message.from_user.id
-    user_mention = message.from_user.mention
+
+    # safe access to from_user
+    user = getattr(message, "from_user", None)
+    user_id = getattr(user, "id", None)
+    user_mention = getattr(user, "mention", "Anonym")
+
     if only_owner:
         owner_id = getattr(config, "OWNER_ID", None)
         if user_id != owner_id and not (sudo_override and user_id in SUDOERS):
@@ -350,10 +382,7 @@ async def add_black(client, message: Message, _):
     await _add_to_list(message.chat.id, "silent_users", ids)
     # ephemeral feedback
     msg = await message.reply_text(f"<blockquote><b>Pengguna: {ids} ditambahkan ke blacklist</b></blockquote>")
-    try:
-        await client.delete_messages(message.chat.id, msg.id)
-    except Exception:
-        pass
+    await _safe_delete(client, message.chat.id, msg.id, silent=True)
     return
 
 
@@ -379,10 +408,7 @@ async def del_black(client, message: Message, _):
         return await message.reply_text("<blockquote><b>User not in blacklist</b></blockquote>")
     await _remove_from_list(message.chat.id, "silent_users", ids)
     msg = await message.reply_text(f"<blockquote><b>Pengguna: {ids} dihapus dari blacklist</b></blockquote>")
-    try:
-        await client.delete_messages(message.chat.id, msg.id)
-    except Exception:
-        pass
+    await _safe_delete(client, message.chat.id, msg.id, silent=True)
     return
 
 
@@ -420,10 +446,7 @@ async def add_word_blacklist(client, message: Message, _):
         return await message.reply_text("<blockquote><b>Pesan tidak memiliki teks untuk diblacklist</b></blockquote>")
     await _add_to_list(message.chat.id, "delete_words", text)
     msg = await message.reply_text(f"<blockquote><b>Kata dimasukkan ke blacklist:\n{text}</b></blockquote>")
-    try:
-        await client.delete_messages(message.chat.id, msg.id)
-    except Exception:
-        pass
+    await _safe_delete(client, message.chat.id, msg.id, silent=True)
     return
 
 
@@ -498,35 +521,32 @@ async def antigcst_handler(client, message: Message):
                 reply_to_message_id=message.id
             )
             await asyncio.sleep(5)
-            try:
-                await client.delete_messages(message.chat.id, sent.id)
-            except Exception:
-                pass
+            await _safe_delete(client, message.chat.id, sent.id, silent=True)
 
         if doc.get("delete_all", False):
             try:
-                await message.delete()
+                await _safe_delete(client, message.chat.id, message.id, silent=True)
                 await send_and_delete_warning()
-            except Exception:
-                LOGGER.warning("Failed to delete message in strict mode in chat %s", message.chat.id)
+            except Exception as e:
+                LOGGER.warning("Failed to delete message in strict mode in chat %s: %s", message.chat.id, e)
             return
 
         if uid in doc.get("silent_users", []):
             try:
-                await message.delete()
+                await _safe_delete(client, message.chat.id, message.id, silent=True)
                 await send_and_delete_warning()
-            except Exception:
-                LOGGER.warning("Failed to delete message from blacklisted user in chat %s", message.chat.id)
+            except Exception as e:
+                LOGGER.warning("Failed to delete message from blacklisted user in chat %s: %s", message.chat.id, e)
             return
 
         text = message.text or message.caption or ""
         for word in doc.get("delete_words", []):
             if word and word.lower() in text.lower():
                 try:
-                    await message.delete()
+                    await _safe_delete(client, message.chat.id, message.id, silent=True)
                     await send_and_delete_warning()
-                except Exception:
-                    LOGGER.warning("Failed to delete message containing blacklisted word in chat %s", message.chat.id)
+                except Exception as e:
+                    LOGGER.warning("Failed to delete message containing blacklisted word in chat %s: %s", message.chat.id, e)
                 return
     except Exception as e:
         LOGGER.error("Error in antigcst_handler: %s", e)
