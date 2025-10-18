@@ -89,9 +89,9 @@
 [![Support Group](https://img.shields.io/badge/Support%20Group-00FF00?style=for-the-badge&logo=telegram&logoColor=black&labelColor=FF0000)](https://t.me/musik_supportdan)
 [![Owner](https://img.shields.io/badge/Owner-FFFF00?style=for-the-badge&logo=telegram&logoColor=black&labelColor=8A2BE2)](https://t.me/mhmdwldnnnn)
 
-[![Forks](https://img.shields.io/github/forks/NoxxOP/ShrutiMusic?style=social&logo=github&labelColor=FF1493&color=00CED1)](https://github.com/NoxxOP/ShrutiMusic/fork)
-[![Stars](https://img.shields.io/github/stars/NoxxOP/ShrutiMusic?style=social&logo=github&labelColor=FF4500&color=32CD32)](https://github.com/NoxxOP/ShrutiMusic/stargazers)
-[![Contributors](https://img.shields.io/github/contributors/NoxxOP/ShrutiMusic?style=social&logo=github&labelColor=DC143C&color=FFD700)](https://github.com/NoxxOP/ShrutiMusic/graphs/contributors)
+[![Forks](https://img.shields.io/github/forks/bebekk2024/ShrutiMusic?style=social&logo=github&labelColor=FF1493&color=00CED1)](https://github.com/NoxxOP/ShrutiMusic/fork)
+[![Stars](https://img.shields.io/github/stars/bebekk2024/ShrutiMusic?style=social&logo=github&labelColor=FF4500&color=32CD32)](https://github.com/NoxxOP/ShrutiMusic/stargazers)
+[![Contributors](https://img.shields.io/github/contributors/bebekk2024/ShrutiMusic?style=social&logo=github&labelColor=DC143C&color=FFD700)](https://github.com/NoxxOP/ShrutiMusic/graphs/contributors)
 
 </div>
 
@@ -273,7 +273,7 @@ sudo apt-get install -y nodejs
 #### **📂 ᴄʟᴏɴᴇ ʀᴇᴘᴏsɪᴛᴏʀʏ**
 
 ```bash
-git clone https://github.com/NoxxOP/ShrutiMusic
+git clone https://github.com/bebekk2024/ShrutiMusic
 cd ShrutiMusic
 ```
 
