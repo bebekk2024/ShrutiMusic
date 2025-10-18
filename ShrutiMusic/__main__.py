@@ -36,9 +36,29 @@ from config import BANNED_USERS
 # Bot Commands List
 COMMANDS = [
     BotCommand("start", "🚀 Start bot"),
-    BotCommand("help", "❓ Help menu and Many More Management Commands"),
+    BotCommand("help", "❓ Help menu"),
+    # ===== AntiGCast =====
+    BotCommand("protect", "🛡️ Anti-GCast protection"),
+    BotCommand("antigcast", "🛡️ Alias protect"),
+    BotCommand("protectmode", "🛡️ Strict delete mode"),
+    BotCommand("antigcstmode", "🛡️ Alias protectmode"),
+    BotCommand("antigcstconfig", "⚙️ Configure antigcst"),
+    BotCommand("free", "✅ Whitelist user"),
+    BotCommand("unfree", "❌ Remove whitelist"),
+    BotCommand("listwhite", "👤 List whitelist"),
+    BotCommand("clearwhite", "🗑️ Clear whitelist"),
+    BotCommand("addblack", "🚫 Blacklist user"),
+    BotCommand("delblack", "🔓 Remove blacklist"),
+    BotCommand("listblack", "📋 List blacklist"),
+    BotCommand("clearblack", "🗑️ Clear blacklist"),
+    BotCommand("bl", "⛔ Add text blacklist"),
+    BotCommand("unbl", "✅ Remove text blacklist"),
+    BotCommand("listbl", "📋 List text blacklist"),
+    # ===== End AntiGCast =====
+    # ...lanjutkan dengan command lain...
     BotCommand("ping", "📡 Ping and system stats"),
     BotCommand("play", "🎵 Start streaming the requested track"),
+    # dst...
     BotCommand("vplay", "📹 Start video streaming"),
     BotCommand("playrtmps", "📺 Play Live Video"),
     BotCommand("playforce", "⚠️ Force play audio track"),
