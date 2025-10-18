@@ -85,9 +85,9 @@
   
 ### ᴀ ᴘᴏᴡᴇʀғᴜʟ ᴛᴇʟᴇɢʀᴀᴍ ᴍᴜsɪᴄ ʙᴏᴛ ᴛᴏ ᴘʟᴀʏ sᴏɴɢs ɪɴ ᴠᴏɪᴄᴇ ᴄʜᴀᴛs
   
-[![Support Channel](https://img.shields.io/badge/Support%20Channel-FF0000?style=for-the-badge&logo=telegram&logoColor=white&labelColor=000000)](https://t.me/ShrutiBots)
-[![Support Group](https://img.shields.io/badge/Support%20Group-00FF00?style=for-the-badge&logo=telegram&logoColor=black&labelColor=FF0000)](https://t.me/ShrutiBotSupport)
-[![Owner](https://img.shields.io/badge/Owner-FFFF00?style=for-the-badge&logo=telegram&logoColor=black&labelColor=8A2BE2)](https://t.me/WTF_WhyMeeh)
+[![Support Channel](https://img.shields.io/badge/Support%20Channel-FF0000?style=for-the-badge&logo=telegram&logoColor=white&labelColor=000000)](https://t.me/Disney_storeDan)
+[![Support Group](https://img.shields.io/badge/Support%20Group-00FF00?style=for-the-badge&logo=telegram&logoColor=black&labelColor=FF0000)](https://t.me/musik_supportdan)
+[![Owner](https://img.shields.io/badge/Owner-FFFF00?style=for-the-badge&logo=telegram&logoColor=black&labelColor=8A2BE2)](https://t.me/mhmdwldnnnn)
 
 [![Forks](https://img.shields.io/github/forks/NoxxOP/ShrutiMusic?style=social&logo=github&labelColor=FF1493&color=00CED1)](https://github.com/NoxxOP/ShrutiMusic/fork)
 [![Stars](https://img.shields.io/github/stars/NoxxOP/ShrutiMusic?style=social&logo=github&labelColor=FF4500&color=32CD32)](https://github.com/NoxxOP/ShrutiMusic/stargazers)
@@ -216,12 +216,12 @@ sᴏᴜɴᴅᴄʟᴏᴜᴅ • ʟᴏᴄᴀʟ ғɪʟᴇs
 
 <div align="center">
 
-![Repo Size](https://img.shields.io/github/repo-size/NoxxOP/ShrutiMusic?style=flat-square&logo=github&color=FF1493&labelColor=000080)
-![Issues](https://img.shields.io/github/issues/NoxxOP/ShrutiMusic?style=flat-square&logo=github&color=FF4500&labelColor=008B8B)
-![Forks](https://img.shields.io/github/forks/NoxxOP/ShrutiMusic?style=flat-square&logo=github&color=32CD32&labelColor=8B0000)
-![Stars](https://img.shields.io/github/stars/NoxxOP/ShrutiMusic?style=flat-square&logo=github&color=FFD700&labelColor=4B0082)
-![License](https://img.shields.io/github/license/NoxxOP/ShrutiMusic?style=flat-square&logo=github&color=00CED1&labelColor=DC143C)
-![Last Commit](https://img.shields.io/github/last-commit/NoxxOP/ShrutiMusic?style=flat-square&logo=github&color=FF6347&labelColor=2F4F4F)
+![Repo Size](https://img.shields.io/github/repo-size/bebek2024/ShrutiMusic?style=flat-square&logo=github&color=FF1493&labelColor=000080)
+![Issues](https://img.shields.io/github/issues/bebek2024/ShrutiMusic?style=flat-square&logo=github&color=FF4500&labelColor=008B8B)
+![Forks](https://img.shields.io/github/forks/bebek2024/ShrutiMusic?style=flat-square&logo=github&color=32CD32&labelColor=8B0000)
+![Stars](https://img.shields.io/github/stars/bebek2024/ShrutiMusic?style=flat-square&logo=github&color=FFD700&labelColor=4B0082)
+![License](https://img.shields.io/github/license/bebek2024/ShrutiMusic?style=flat-square&logo=github&color=00CED1&labelColor=DC143C)
+![Last Commit](https://img.shields.io/github/last-commit/bebek2024/ShrutiMusic?style=flat-square&logo=github&color=FF6347&labelColor=2F4F4F)
 
 </div>
 
@@ -360,7 +360,7 @@ screen -r {screen_id}
 
 <div align="center">
 
-[![Deploy to Heroku](https://img.shields.io/badge/Deploy%20To%20Heroku-FF0080?style=for-the-badge&logo=heroku&logoColor=white&labelColor=000080)](https://dashboard.heroku.com/new?template=https://github.com/NoxxOP/ShrutiMusic)
+[![Deploy to Heroku](https://img.shields.io/badge/Deploy%20To%20Heroku-FF0080?style=for-the-badge&logo=heroku&logoColor=white&labelColor=000080)](https://dashboard.heroku.com/new?template=https://github.com/bebek2024/ShrutiMusic)
 
 </div>
 
@@ -457,7 +457,7 @@ screen -r {screen_id}
 <td align="center" width="50%">
 
 ### 📢 **sᴜᴘᴘᴏʀᴛ ᴄʜᴀɴɴᴇʟ**
-[![Join Channel](https://img.shields.io/badge/Join%20Channel-FF0000?style=for-the-badge&logo=telegram&logoColor=white&labelColor=000000)](https://t.me/ShrutiBots)
+[![Join Channel](https://img.shields.io/badge/Join%20Channel-FF0000?style=for-the-badge&logo=telegram&logoColor=white&labelColor=000000)](https://t.me/Disney_storeDan)
 
 **ɢᴇᴛ ʟᴀᴛᴇsᴛ ᴜᴘᴅᴀᴛᴇs**
 
@@ -465,7 +465,7 @@ screen -r {screen_id}
 <td align="center" width="50%">
 
 ### 💬 **sᴜᴘᴘᴏʀᴛ ɢʀᴏᴜᴘ**
-[![Join Group](https://img.shields.io/badge/Join%20Group-00FF00?style=for-the-badge&logo=telegram&logoColor=black&labelColor=FF0000)](https://t.me/ShrutiBotSupport)
+[![Join Group](https://img.shields.io/badge/Join%20Group-00FF00?style=for-the-badge&logo=telegram&logoColor=black&labelColor=FF0000)](https://t.me/musik_supportdan_)
 
 **24/7 ʜᴇʟᴘ & sᴜᴘᴘᴏʀᴛ**
 
