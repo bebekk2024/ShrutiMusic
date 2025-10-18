@@ -360,7 +360,7 @@ screen -r {screen_id}
 
 <div align="center">
 
-[![Deploy to Heroku](https://img.shields.io/badge/Deploy%20To%20Heroku-FF0080?style=for-the-badge&logo=heroku&logoColor=white&labelColor=000080)](https://dashboard.heroku.com/new?template=https://github.com/bebek2024/ShrutiMusic)
+[![Deploy to Heroku](https://img.shields.io/badge/Deploy%20To%20Heroku-FF0080?style=for-the-badge&logo=heroku&logoColor=white&labelColor=000080)](https://dashboard.heroku.com/new?template=https://github.com/bebekk2024/ShrutiMusic)
 
 </div>
 
