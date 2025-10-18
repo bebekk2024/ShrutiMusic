@@ -20,11 +20,20 @@
 # Email: badboy809075@gmail.com
 
 
+import asyncio
+
+# Pastikan ada event loop sebelum import yang memicu pyrogram
+try:
+    asyncio.get_event_loop()
+except RuntimeError:
+    asyncio.set_event_loop(asyncio.new_event_loop())
+
+
 from ShrutiMusic.core.bot import Nand
 from ShrutiMusic.core.dir import dirr
 from ShrutiMusic.core.git import git
 from ShrutiMusic.core.userbot import Userbot
-from ShurtiMusic.misc import mongodb
+from ShrutiMusic.misc import mongodb
 from ShrutiMusic.misc import dbb, heroku
 from ShrutiMusic.misc import SUDOERS
 from .logging import LOGGER
