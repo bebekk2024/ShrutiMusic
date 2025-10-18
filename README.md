@@ -106,7 +106,7 @@
 <td align="center" width="33%">
 
 ### 🔥 **ʜᴇʀᴏᴋᴜ**
-<a href="https://dashboard.heroku.com/new?template=https://github.com/NoxxOP/ShrutiMusic">
+<a href="https://dashboard.heroku.com/new?template=https://github.com/bebekk2024/ShrutiMusic">
 <img src="https://img.shields.io/badge/Deploy%20To%20Heroku-FF0080?style=for-the-badge&logo=heroku&logoColor=white&labelColor=000080" width="220px">
 </a>
 
@@ -116,7 +116,7 @@
 <td align="center" width="33%">
 
 ### ☁️ **ʀᴇɴᴅᴇʀ**
-<a href="https://render.com/deploy?repo=https://github.com/NoxxOP/ShrutiMusic">
+<a href="https://render.com/deploy?repo=https://github.com/bebekk2024/ShrutiMusic">
 <img src="https://img.shields.io/badge/Deploy%20To%20Render-00FF80?style=for-the-badge&logo=render&logoColor=black&labelColor=800080" width="220px">
 </a>
 
@@ -126,7 +126,7 @@
 <td align="center" width="33%">
 
 ### 🎵 **sɪᴍᴘʟᴇ ʙᴏᴛ**
-<a href="https://github.com/NoxxOP/ShrutixMusic">
+<a href="https://github.com/bebekk2024/ShrutixMusic">
 <img src="https://img.shields.io/badge/Simple%20Music%20Bot-FF4000?style=for-the-badge&logo=github&logoColor=white&labelColor=008000" width="220px">
 </a>
 
@@ -216,12 +216,12 @@ sᴏᴜɴᴅᴄʟᴏᴜᴅ • ʟᴏᴄᴀʟ ғɪʟᴇs
 
 <div align="center">
 
-![Repo Size](https://img.shields.io/github/repo-size/bebek2024/ShrutiMusic?style=flat-square&logo=github&color=FF1493&labelColor=000080)
-![Issues](https://img.shields.io/github/issues/bebek2024/ShrutiMusic?style=flat-square&logo=github&color=FF4500&labelColor=008B8B)
-![Forks](https://img.shields.io/github/forks/bebek2024/ShrutiMusic?style=flat-square&logo=github&color=32CD32&labelColor=8B0000)
-![Stars](https://img.shields.io/github/stars/bebek2024/ShrutiMusic?style=flat-square&logo=github&color=FFD700&labelColor=4B0082)
-![License](https://img.shields.io/github/license/bebek2024/ShrutiMusic?style=flat-square&logo=github&color=00CED1&labelColor=DC143C)
-![Last Commit](https://img.shields.io/github/last-commit/bebek2024/ShrutiMusic?style=flat-square&logo=github&color=FF6347&labelColor=2F4F4F)
+![Repo Size](https://img.shields.io/github/repo-size/bebekk2024/ShrutiMusic?style=flat-square&logo=github&color=FF1493&labelColor=000080)
+![Issues](https://img.shields.io/github/issues/bebekk2024/ShrutiMusic?style=flat-square&logo=github&color=FF4500&labelColor=008B8B)
+![Forks](https://img.shields.io/github/forks/bebekk2024/ShrutiMusic?style=flat-square&logo=github&color=32CD32&labelColor=8B0000)
+![Stars](https://img.shields.io/github/stars/bebekk2024/ShrutiMusic?style=flat-square&logo=github&color=FFD700&labelColor=4B0082)
+![License](https://img.shields.io/github/license/bebekk2024/ShrutiMusic?style=flat-square&logo=github&color=00CED1&labelColor=DC143C)
+![Last Commit](https://img.shields.io/github/last-commit/bebekk2024/ShrutiMusic?style=flat-square&logo=github&color=FF6347&labelColor=2F4F4F)
 
 </div>
 
