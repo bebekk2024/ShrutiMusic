@@ -35,7 +35,6 @@ async def download_song_api(link: str):
         video_id = link.split('v=')[-1].split('&')[0]
         download_folder = "downloads"
         
-        # Check if file already exists
         for ext in ["mp3", "m4a", "webm"]:
             file_path = f"{download_folder}/{video_id}.{ext}"
             if os.path.exists(file_path):
@@ -66,7 +65,6 @@ async def download_song_api(link: str):
             else:
                 return None
 
-            # Download the file
             file_format = data.get("format", "mp3")
             file_extension = file_format.lower()
             file_name = f"{video_id}.{file_extension}"
@@ -108,18 +106,15 @@ async def download_song_cookies(link: str):
                 info = ydl.extract_info(link, download=False)
                 video_id = info['id']
                 
-                # Check if file already exists
                 for ext in ["webm", "m4a", "mp3"]:
                     file_path = f"downloads/{video_id}.{ext}"
                     if os.path.exists(file_path):
                         return file_path
                 
-                # Download if not exists
                 return ydl.download([link])
         
         result = await loop.run_in_executor(None, _download)
         
-        # Get the actual file path
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(link, download=False)
             video_id = info['id']
@@ -139,7 +134,6 @@ async def download_video_api(link: str):
         video_id = link.split('v=')[-1].split('&')[0]
         download_folder = "downloads"
         
-        # Check if file already exists
         for ext in ["mp4", "webm", "mkv"]:
             file_path = f"{download_folder}/{video_id}.{ext}"
             if os.path.exists(file_path):
@@ -170,7 +164,6 @@ async def download_video_api(link: str):
             else:
                 return None
 
-            # Download the file
             file_format = data.get("format", "mp4")
             file_extension = file_format.lower()
             file_name = f"{video_id}.{file_extension}"
@@ -212,18 +205,15 @@ async def download_video_cookies(link: str):
                 info = ydl.extract_info(link, download=False)
                 video_id = info['id']
                 
-                # Check if file already exists
                 for ext in ["mp4", "webm", "mkv"]:
                     file_path = f"downloads/{video_id}.{ext}"
                     if os.path.exists(file_path):
                         return file_path
                 
-                # Download if not exists
                 return ydl.download([link])
         
         result = await loop.run_in_executor(None, _download)
         
-        # Get the actual file path
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(link, download=False)
             video_id = info['id']
@@ -241,13 +231,11 @@ async def download_song_combined(link: str):
     """Try both API and cookies for song download, whichever responds first"""
     print("🔊 Starting combined song download...")
     
-    # Try API first
     api_result = await download_song_api(link)
     if api_result:
         print("✅ Song downloaded via API")
         return api_result
     
-    # If API fails, try cookies
     cookies_result = await download_song_cookies(link)
     if cookies_result:
         print("✅ Song downloaded via Cookies")
@@ -260,13 +248,11 @@ async def download_video_combined(link: str):
     """Try both API and cookies for video download, whichever responds first"""
     print("🎥 Starting combined video download...")
     
-    # Try API first
     api_result = await download_video_api(link)
     if api_result:
         print("✅ Video downloaded via API")
         return api_result
     
-    # If API fails, try cookies
     cookies_result = await download_video_cookies(link)
     if cookies_result:
         print("✅ Video downloaded via Cookies")
@@ -421,12 +407,10 @@ class YouTubeAPI:
         if "&" in link:
             link = link.split("&")[0]
         
-        # Try combined download first
         downloaded_file = await download_video_combined(link)
         if downloaded_file:
             return 1, downloaded_file
         
-        # Fallback to direct URL extraction
         cookie_file = cookie_txt_file()
         if not cookie_file:
             return 0, "No cookies found. Cannot download video."
@@ -621,13 +605,11 @@ class YouTubeAPI:
             fpath = f"downloads/{title}.mp3"
             return fpath
         elif video:
-            # Try combined video download
             downloaded_file = await download_video_combined(link)
             if downloaded_file:
                 direct = True
                 return downloaded_file, direct
             
-            # Fallback to direct URL
             if not await is_on_off(1):
                 cookie_file = cookie_txt_file()
                 if cookie_file:
@@ -647,12 +629,10 @@ class YouTubeAPI:
                         direct = False
                         return downloaded_file, direct
             
-            # Check file size and download if within limits
             file_size = await check_file_size(link)
             if file_size:
                 total_size_mb = file_size / (1024 * 1024)
                 if total_size_mb <= 250:
-                    # Try cookies download for video
                     cookies_result = await download_video_cookies(link)
                     if cookies_result:
                         direct = True
@@ -660,7 +640,6 @@ class YouTubeAPI:
             
             return None, None
         else:
-            # Audio download using combined method
             direct = True
             downloaded_file = await download_song_combined(link)
             return downloaded_file, direct
