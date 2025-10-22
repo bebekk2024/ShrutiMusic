@@ -24,14 +24,14 @@ requests
 speedtest-cli
 spotipy
 tgcrypto
-telegraph 
+telegraph
 unidecode
 yt-dlp
 youtube-search
 youtube-search-python
+pyrogram
 # ===========================================
 # ©️ 2025 Nand Yaduwanshi , aka @NoxxOP
 # 🔗 GitHub : https://github.com/NoxxOP/ShrutiMusic
 # 📢 Telegram Channel : https://t.me/ShrutiBots
 # ===========================================
-
