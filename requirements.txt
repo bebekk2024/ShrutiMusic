@@ -26,7 +26,7 @@ spotipy
 tgcrypto
 telegraph 
 unidecode
-yt-dlp=2025.0.0
+yt-dlp>=2025.0.0
 youtube-search
 youtube-search-python
 # ===========================================
@@ -34,5 +34,6 @@ youtube-search-python
 # 🔗 GitHub : https://github.com/NoxxOP/ShrutiMusic
 # 📢 Telegram Channel : https://t.me/ShrutiBots
 # ===========================================
+
 
 
