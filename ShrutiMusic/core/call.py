@@ -62,6 +62,7 @@ from strings import get_string
 
 autoend = {}
 counter = {}
+_log = LOGGER(__name__)
 
 
 async def _clear_(chat_id):
@@ -352,7 +353,33 @@ class Call(PyTgCalls):
                 autoend[chat_id] = datetime.now() + timedelta(minutes=1)
 
     async def change_stream(self, client, chat_id):
-        check = db.get(chat_id)
+        """
+        Safely change the stream to the next queued item.
+
+        Main fixes:
+        - Guard against empty/None `check` from db.
+        - Guard against `queued` being None (prevents TypeError when using 'in').
+        - Provide logs and safer cleanup/leave on unexpected states.
+        """
+        try:
+            check = db.get(chat_id) or []
+        except Exception as e:
+            _log.warning("Failed to read db for chat %s: %s", chat_id, e)
+            check = []
+
+        # If no queued items, cleanup and leave call
+        if not check:
+            _log.debug("No queue found for chat %s, attempting to clear and leave.", chat_id)
+            try:
+                await _clear_(chat_id)
+            except Exception:
+                _log.exception("Failed to clear DB state for chat %s", chat_id)
+            try:
+                return await client.leave_group_call(chat_id)
+            except Exception:
+                _log.debug("Failed to leave group call for chat %s (maybe already left).", chat_id)
+                return
+
         popped = None
         loop = await get_loop(chat_id)
         try:
@@ -361,207 +388,275 @@ class Call(PyTgCalls):
             else:
                 loop = loop - 1
                 await set_loop(chat_id, loop)
-            await auto_clean(popped)
+            # try to auto_clean popped item (if any)
+            try:
+                if popped:
+                    await auto_clean(popped)
+            except Exception:
+                _log.exception("auto_clean failed for popped item in chat %s", chat_id)
+
+            # If after popping the list is empty -> clear and leave
             if not check:
-                await _clear_(chat_id)
-                return await client.leave_group_call(chat_id)
-        except:
+                _log.debug("Queue emptied after pop for chat %s, clearing and leaving.", chat_id)
+                try:
+                    await _clear_(chat_id)
+                except Exception:
+                    _log.exception("Failed to clear DB state for chat %s", chat_id)
+                try:
+                    return await client.leave_group_call(chat_id)
+                except Exception:
+                    _log.debug("Failed to leave group call for chat %s after empty queue.", chat_id)
+                    return
+        except Exception:
+            # If something goes wrong during pop/loop handling try safe cleanup
+            _log.exception("Error while popping queue for chat %s. Clearing and leaving.", chat_id)
             try:
                 await _clear_(chat_id)
+            except Exception:
+                _log.exception("Failed to clear DB state for chat %s", chat_id)
+            try:
                 return await client.leave_group_call(chat_id)
-            except:
+            except Exception:
                 return
-        else:
-            queued = check[0]["file"]
-            language = await get_lang(chat_id)
-            _ = get_string(language)
-            title = (check[0]["title"]).title()
-            user = check[0]["by"]
-            original_chat_id = check[0]["chat_id"]
-            streamtype = check[0]["streamtype"]
-            videoid = check[0]["vidid"]
+
+        # At this point we expect at least one item in check
+        try:
+            queue_item = check[0]
+        except Exception:
+            _log.warning("Unexpected queue structure for chat %s. Clearing and leaving.", chat_id)
+            try:
+                await _clear_(chat_id)
+            except Exception:
+                pass
+            try:
+                return await client.leave_group_call(chat_id)
+            except Exception:
+                return
+
+        # Safely get queued file value
+        queued = queue_item.get("file") if isinstance(queue_item, dict) else None
+
+        # If queued is not valid, cleanup and leave
+        if not queued:
+            _log.warning("Queued file is None/empty for chat %s. Clearing state and leaving call.", chat_id)
+            try:
+                await _clear_(chat_id)
+            except Exception:
+                _log.exception("Failed to clear DB state for chat %s", chat_id)
+            try:
+                return await client.leave_group_call(chat_id)
+            except Exception:
+                _log.debug("Failed to leave group call for chat %s (queued invalid).", chat_id)
+                return
+
+        # Continue with rest of original logic; prepare necessary variables
+        language = await get_lang(chat_id)
+        _ = get_string(language)
+        title = (queue_item.get("title") or "").title()
+        user = queue_item.get("by")
+        original_chat_id = queue_item.get("chat_id")
+        streamtype = queue_item.get("streamtype")
+        videoid = queue_item.get("vidid")
+        # Reset play counters
+        try:
             db[chat_id][0]["played"] = 0
-            exis = (check[0]).get("old_dur")
-            if exis:
+        except Exception:
+            _log.debug("Failed to reset played counter for chat %s", chat_id)
+
+        exis = queue_item.get("old_dur")
+        if exis:
+            try:
                 db[chat_id][0]["dur"] = exis
-                db[chat_id][0]["seconds"] = check[0]["old_second"]
+                db[chat_id][0]["seconds"] = queue_item.get("old_second")
                 db[chat_id][0]["speed_path"] = None
                 db[chat_id][0]["speed"] = 1.0
-            video = True if str(streamtype) == "video" else False
-            if "live_" in queued:
+            except Exception:
+                _log.debug("Failed to restore old duration info for chat %s", chat_id)
+
+        video = True if str(streamtype) == "video" else False
+
+        # Convert queued to string for safe substring checks
+        try:
+            qstr = str(queued)
+        except Exception:
+            qstr = ""
+
+        # Handle live streams safely
+        if "live_" in qstr:
+            try:
                 n, link = await YouTube.video(videoid, True)
-                if n == 0:
-                    return await app.send_message(
-                        original_chat_id,
-                        text=_["call_6"],
-                    )
-                if video:
-                    stream = AudioVideoPiped(
-                        link,
-                        audio_parameters=HighQualityAudio(),
-                        video_parameters=MediumQualityVideo(),
-                    )
-                else:
-                    stream = AudioPiped(
-                        link,
-                        audio_parameters=HighQualityAudio(),
-                    )
+            except Exception:
+                _log.exception("YouTube.video lookup failed for live id %s in chat %s", videoid, chat_id)
+                return await app.send_message(original_chat_id, text=_["call_6"])
+            if n == 0:
+                return await app.send_message(original_chat_id, text=_["call_6"])
+            if video:
+                stream = AudioVideoPiped(
+                    link,
+                    audio_parameters=HighQualityAudio(),
+                    video_parameters=MediumQualityVideo(),
+                )
+            else:
+                stream = AudioPiped(link, audio_parameters=HighQualityAudio())
+            try:
+                await client.change_stream(chat_id, stream)
+            except Exception:
+                _log.exception("Failed to change stream to live link for chat %s", chat_id)
+                return await app.send_message(original_chat_id, text=_["call_6"])
+            img = await gen_thumb(videoid)
+            button = stream_markup(_, chat_id)
+            run = await app.send_photo(
+                chat_id=original_chat_id,
+                photo=img,
+                caption=_["stream_1"].format(
+                    f"https://t.me/{app.username}?start=info_{videoid}",
+                    title[:23],
+                    queue_item.get("dur"),
+                    user,
+                ),
+                reply_markup=InlineKeyboardMarkup(button),
+            )
+            db[chat_id][0]["mystic"] = run
+            db[chat_id][0]["markup"] = "tg"
+
+        # Handle direct video download streams
+        elif "vid_" in qstr:
+            try:
+                mystic = await app.send_message(original_chat_id, _["call_7"])
+            except Exception:
+                mystic = None
+            try:
+                file_path, direct = await YouTube.download(
+                    videoid,
+                    mystic,
+                    videoid=True,
+                    video=True if str(streamtype) == "video" else False,
+                )
+            except Exception:
+                _log.exception("YouTube.download failed for vid %s in chat %s", videoid, chat_id)
+                if mystic:
+                    try:
+                        return await mystic.edit_text(_["call_6"], disable_web_page_preview=True)
+                    except Exception:
+                        pass
+                return await app.send_message(original_chat_id, text=_["call_6"])
+            if video:
+                stream = AudioVideoPiped(
+                    file_path,
+                    audio_parameters=HighQualityAudio(),
+                    video_parameters=MediumQualityVideo(),
+                )
+            else:
+                stream = AudioPiped(file_path, audio_parameters=HighQualityAudio())
+            try:
+                await client.change_stream(chat_id, stream)
+            except Exception:
+                _log.exception("Failed to change stream to downloaded vid for chat %s", chat_id)
+                return await app.send_message(original_chat_id, text=_["call_6"])
+            img = await gen_thumb(videoid)
+            button = stream_markup(_, chat_id)
+            if mystic:
                 try:
-                    await client.change_stream(chat_id, stream)
+                    await mystic.delete()
                 except Exception:
-                    return await app.send_message(
-                        original_chat_id,
-                        text=_["call_6"],
-                    )
-                img = await gen_thumb(videoid)
+                    pass
+            run = await app.send_photo(
+                chat_id=original_chat_id,
+                photo=img,
+                caption=_["stream_1"].format(
+                    f"https://t.me/{app.username}?start=info_{videoid}",
+                    title[:23],
+                    queue_item.get("dur"),
+                    user,
+                ),
+                reply_markup=InlineKeyboardMarkup(button),
+            )
+            db[chat_id][0]["mystic"] = run
+            db[chat_id][0]["markup"] = "stream"
+
+        # Handle index_ streams (streaming an existing URL/id)
+        elif "index_" in qstr:
+            stream = (
+                AudioVideoPiped(
+                    videoid,
+                    audio_parameters=HighQualityAudio(),
+                    video_parameters=MediumQualityVideo(),
+                )
+                if str(streamtype) == "video"
+                else AudioPiped(videoid, audio_parameters=HighQualityAudio())
+            )
+            try:
+                await client.change_stream(chat_id, stream)
+            except Exception:
+                _log.exception("Failed to change stream to index for chat %s", chat_id)
+                return await app.send_message(original_chat_id, text=_["call_6"])
+            button = stream_markup(_, chat_id)
+            run = await app.send_photo(
+                chat_id=original_chat_id,
+                photo=config.STREAM_IMG_URL,
+                caption=_["stream_2"].format(user),
+                reply_markup=InlineKeyboardMarkup(button),
+            )
+            db[chat_id][0]["mystic"] = run
+            db[chat_id][0]["markup"] = "tg"
+
+        # Handle normal queued files/urls
+        else:
+            if video:
+                stream = AudioVideoPiped(
+                    queued,
+                    audio_parameters=HighQualityAudio(),
+                    video_parameters=MediumQualityVideo(),
+                )
+            else:
+                stream = AudioPiped(queued, audio_parameters=HighQualityAudio())
+            try:
+                await client.change_stream(chat_id, stream)
+            except Exception:
+                _log.exception("Failed to change stream to queued file for chat %s", chat_id)
+                return await app.send_message(original_chat_id, text=_["call_6"])
+            if videoid == "telegram":
                 button = stream_markup(_, chat_id)
                 run = await app.send_photo(
                     chat_id=original_chat_id,
-                    photo=img,
+                    photo=config.TELEGRAM_AUDIO_URL
+                    if str(streamtype) == "audio"
+                    else config.TELEGRAM_VIDEO_URL,
                     caption=_["stream_1"].format(
-                        f"https://t.me/{app.username}?start=info_{videoid}",
-                        title[:23],
-                        check[0]["dur"],
-                        user,
+                        config.SUPPORT_GROUP, title[:23], queue_item.get("dur"), user
                     ),
                     reply_markup=InlineKeyboardMarkup(button),
                 )
                 db[chat_id][0]["mystic"] = run
                 db[chat_id][0]["markup"] = "tg"
-            elif "vid_" in queued:
-                mystic = await app.send_message(original_chat_id, _["call_7"])
-                try:
-                    file_path, direct = await YouTube.download(
-                        videoid,
-                        mystic,
-                        videoid=True,
-                        video=True if str(streamtype) == "video" else False,
-                    )
-                except:
-                    return await mystic.edit_text(
-                        _["call_6"], disable_web_page_preview=True
-                    )
-                if video:
-                    stream = AudioVideoPiped(
-                        file_path,
-                        audio_parameters=HighQualityAudio(),
-                        video_parameters=MediumQualityVideo(),
-                    )
-                else:
-                    stream = AudioPiped(
-                        file_path,
-                        audio_parameters=HighQualityAudio(),
-                    )
-                try:
-                    await client.change_stream(chat_id, stream)
-                except:
-                    return await app.send_message(
-                        original_chat_id,
-                        text=_["call_6"],
-                    )
+            elif videoid == "soundcloud":
+                button = stream_markup(_, chat_id)
+                run = await app.send_photo(
+                    chat_id=original_chat_id,
+                    photo=config.SOUNCLOUD_IMG_URL,
+                    caption=_["stream_1"].format(
+                        config.SUPPORT_GROUP, title[:23], queue_item.get("dur"), user
+                    ),
+                    reply_markup=InlineKeyboardMarkup(button),
+                )
+                db[chat_id][0]["mystic"] = run
+                db[chat_id][0]["markup"] = "tg"
+            else:
                 img = await gen_thumb(videoid)
                 button = stream_markup(_, chat_id)
-                await mystic.delete()
                 run = await app.send_photo(
                     chat_id=original_chat_id,
                     photo=img,
                     caption=_["stream_1"].format(
                         f"https://t.me/{app.username}?start=info_{videoid}",
                         title[:23],
-                        check[0]["dur"],
+                        queue_item.get("dur"),
                         user,
                     ),
                     reply_markup=InlineKeyboardMarkup(button),
                 )
                 db[chat_id][0]["mystic"] = run
                 db[chat_id][0]["markup"] = "stream"
-            elif "index_" in queued:
-                stream = (
-                    AudioVideoPiped(
-                        videoid,
-                        audio_parameters=HighQualityAudio(),
-                        video_parameters=MediumQualityVideo(),
-                    )
-                    if str(streamtype) == "video"
-                    else AudioPiped(videoid, audio_parameters=HighQualityAudio())
-                )
-                try:
-                    await client.change_stream(chat_id, stream)
-                except:
-                    return await app.send_message(
-                        original_chat_id,
-                        text=_["call_6"],
-                    )
-                button = stream_markup(_, chat_id)
-                run = await app.send_photo(
-                    chat_id=original_chat_id,
-                    photo=config.STREAM_IMG_URL,
-                    caption=_["stream_2"].format(user),
-                    reply_markup=InlineKeyboardMarkup(button),
-                )
-                db[chat_id][0]["mystic"] = run
-                db[chat_id][0]["markup"] = "tg"
-            else:
-                if video:
-                    stream = AudioVideoPiped(
-                        queued,
-                        audio_parameters=HighQualityAudio(),
-                        video_parameters=MediumQualityVideo(),
-                    )
-                else:
-                    stream = AudioPiped(
-                        queued,
-                        audio_parameters=HighQualityAudio(),
-                    )
-                try:
-                    await client.change_stream(chat_id, stream)
-                except:
-                    return await app.send_message(
-                        original_chat_id,
-                        text=_["call_6"],
-                    )
-                if videoid == "telegram":
-                    button = stream_markup(_, chat_id)
-                    run = await app.send_photo(
-                        chat_id=original_chat_id,
-                        photo=config.TELEGRAM_AUDIO_URL
-                        if str(streamtype) == "audio"
-                        else config.TELEGRAM_VIDEO_URL,
-                        caption=_["stream_1"].format(
-                            config.SUPPORT_GROUP, title[:23], check[0]["dur"], user
-                        ),
-                        reply_markup=InlineKeyboardMarkup(button),
-                    )
-                    db[chat_id][0]["mystic"] = run
-                    db[chat_id][0]["markup"] = "tg"
-                elif videoid == "soundcloud":
-                    button = stream_markup(_, chat_id)
-                    run = await app.send_photo(
-                        chat_id=original_chat_id,
-                        photo=config.SOUNCLOUD_IMG_URL,
-                        caption=_["stream_1"].format(
-                            config.SUPPORT_GROUP, title[:23], check[0]["dur"], user
-                        ),
-                        reply_markup=InlineKeyboardMarkup(button),
-                    )
-                    db[chat_id][0]["mystic"] = run
-                    db[chat_id][0]["markup"] = "tg"
-                else:
-                    img = await gen_thumb(videoid)
-                    button = stream_markup(_, chat_id)
-                    run = await app.send_photo(
-                        chat_id=original_chat_id,
-                        photo=img,
-                        caption=_["stream_1"].format(
-                            f"https://t.me/{app.username}?start=info_{videoid}",
-                            title[:23],
-                            check[0]["dur"],
-                            user,
-                        ),
-                        reply_markup=InlineKeyboardMarkup(button),
-                    )
-                    db[chat_id][0]["mystic"] = run
-                    db[chat_id][0]["markup"] = "stream"
 
     async def ping(self):
         pings = []
@@ -617,7 +712,16 @@ class Call(PyTgCalls):
         async def stream_end_handler1(client, update: Update):
             if not isinstance(update, StreamAudioEnded):
                 return
-            await self.change_stream(client, update.chat_id)
+            # Guard: update.chat_id might be None in weird cases
+            try:
+                chat_id = update.chat_id
+            except Exception:
+                _log.debug("Stream end update missing chat_id.")
+                return
+            if chat_id is None:
+                _log.debug("Stream end update has chat_id=None; ignoring.")
+                return
+            await self.change_stream(client, chat_id)
 
 
 Nand = Call()
