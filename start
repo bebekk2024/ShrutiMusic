@@ -1,1 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# If COOKIE_FILE_CONTENT is provided in Heroku Config Vars, write it to /app/cookies.txt
+if [ -n "${COOKIE_FILE_CONTENT:-}" ]; then
+  printf '%s' "$COOKIE_FILE_CONTENT" > /app/cookies.txt
+  echo "Wrote cookies to /app/cookies.txt"
+fi
+
+# Optionally ensure yt-dlp is up-to-date (comment out if you prefer to control via requirements)
+# python -m pip install --upgrade yt-dlp >/dev/null 2>&1 || true
+
+# Start the bot
 python3 -m ShrutiMusic
