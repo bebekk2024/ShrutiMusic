@@ -46,10 +46,10 @@ DEFAULT_YTDL_OPTS: Dict[str, Any] = {
     "http_headers": {
         "User-Agent": os.environ.get(
             "YTDL_USER_AGENT",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (X11; Linux x86_64)"
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
         ),
-        "Referer": "https://www.youtube.com/",
+        "Referer": "https://m.youtube.com/watch?v=u_15ggPEi8w",
     },
     # postprocessors and outtmpl are left to caller when downloading
     # 'cookiefile': os.environ.get('YTDL_COOKIE_PATH'),
