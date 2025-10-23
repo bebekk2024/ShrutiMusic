@@ -84,6 +84,9 @@ async def skip(cli, message: Message, _, chat_id):
             return await message.reply_text(_["admin_9"])
     else:
         check = db.get(chat_id)
+        if not check:
+            # no queue
+            return await message.reply_text(_["queue_2"])
         popped = None
         try:
             popped = check.pop(0)
@@ -111,20 +114,42 @@ async def skip(cli, message: Message, _, chat_id):
                 return await Nand.stop_stream(chat_id)
             except:
                 return
-    queued = check[0]["file"]
-    title = (check[0]["title"]).title()
-    user = check[0]["by"]
-    streamtype = check[0]["streamtype"]
-    videoid = check[0]["vidid"]
+
+    # Ensure queue still exists and has at least one item
+    check = db.get(chat_id)
+    if not check or len(check) == 0:
+        # Nothing to play next
+        return await message.reply_text(_["queue_2"])
+
+    # Use safe getters and cast to string to avoid NoneType 'in' errors
+    queued = str(check[0].get("file", "")) if isinstance(check[0], dict) else str(check[0])
+    title = str(check[0].get("title", "")).title() if isinstance(check[0], dict) else str(check[0])
+    user = check[0].get("by", "Unknown") if isinstance(check[0], dict) else "Unknown"
+    streamtype = check[0].get("streamtype", None) if isinstance(check[0], dict) else None
+    videoid = check[0].get("vidid", None) if isinstance(check[0], dict) else None
     status = True if str(streamtype) == "video" else None
-    db[chat_id][0]["played"] = 0
-    exis = (check[0]).get("old_dur")
+
+    # Ensure db entry and reset played
+    try:
+        db[chat_id][0]["played"] = 0
+    except Exception:
+        # safe fallback: set minimally
+        if chat_id not in db:
+            db[chat_id] = []
+        if db[chat_id]:
+            db[chat_id][0]["played"] = 0
+
+    exis = (check[0]).get("old_dur") if isinstance(check[0], dict) else None
     if exis:
         db[chat_id][0]["dur"] = exis
-        db[chat_id][0]["seconds"] = check[0]["old_second"]
+        db[chat_id][0]["seconds"] = check[0].get("old_second", 0)
         db[chat_id][0]["speed_path"] = None
         db[chat_id][0]["speed"] = 1.0
+
+    # Safe check for live/vid/index patterns
     if "live_" in queued:
+        if not videoid:
+            return await message.reply_text(_["admin_7"].format(title))
         n, link = await YouTube.video(videoid, True)
         if n == 0:
             return await message.reply_text(_["admin_7"].format(title))
@@ -143,13 +168,14 @@ async def skip(cli, message: Message, _, chat_id):
             caption=_["stream_1"].format(
                 f"https://t.me/{app.username}?start=info_{videoid}",
                 title[:23],
-                check[0]["dur"],
+                check[0].get("dur", ""),
                 user,
             ),
             reply_markup=InlineKeyboardMarkup(button),
         )
         db[chat_id][0]["mystic"] = run
         db[chat_id][0]["markup"] = "tg"
+
     elif "vid_" in queued:
         mystic = await message.reply_text(_["call_7"], disable_web_page_preview=True)
         try:
@@ -176,7 +202,7 @@ async def skip(cli, message: Message, _, chat_id):
             caption=_["stream_1"].format(
                 f"https://t.me/{app.username}?start=info_{videoid}",
                 title[:23],
-                check[0]["dur"],
+                check[0].get("dur", ""),
                 user,
             ),
             reply_markup=InlineKeyboardMarkup(button),
@@ -184,6 +210,7 @@ async def skip(cli, message: Message, _, chat_id):
         db[chat_id][0]["mystic"] = run
         db[chat_id][0]["markup"] = "stream"
         await mystic.delete()
+
     elif "index_" in queued:
         try:
             await Nand.skip_stream(chat_id, videoid, video=status)
@@ -197,6 +224,7 @@ async def skip(cli, message: Message, _, chat_id):
         )
         db[chat_id][0]["mystic"] = run
         db[chat_id][0]["markup"] = "tg"
+
     else:
         if videoid == "telegram":
             image = None
@@ -218,7 +246,7 @@ async def skip(cli, message: Message, _, chat_id):
                 if str(streamtype) == "audio"
                 else config.TELEGRAM_VIDEO_URL,
                 caption=_["stream_1"].format(
-                    config.SUPPORT_GROUP, title[:23], check[0]["dur"], user
+                    config.SUPPORT_GROUP, title[:23], check[0].get("dur", ""), user
                 ),
                 reply_markup=InlineKeyboardMarkup(button),
             )
@@ -231,7 +259,7 @@ async def skip(cli, message: Message, _, chat_id):
                 if str(streamtype) == "audio"
                 else config.TELEGRAM_VIDEO_URL,
                 caption=_["stream_1"].format(
-                    config.SUPPORT_GROUP, title[:23], check[0]["dur"], user
+                    config.SUPPORT_GROUP, title[:23], check[0].get("dur", ""), user
                 ),
                 reply_markup=InlineKeyboardMarkup(button),
             )
@@ -245,7 +273,7 @@ async def skip(cli, message: Message, _, chat_id):
                 caption=_["stream_1"].format(
                     f"https://t.me/{app.username}?start=info_{videoid}",
                     title[:23],
-                    check[0]["dur"],
+                    check[0].get("dur", ""),
                     user,
                 ),
                 reply_markup=InlineKeyboardMarkup(button),
