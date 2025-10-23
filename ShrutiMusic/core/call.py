@@ -136,38 +136,40 @@ class Call(PyTgCalls):
         try:
             await _clear_(chat_id)
             await assistant.leave_group_call(chat_id)
-        except:
-            pass
+        except Exception:
+            # swallow any error while leaving/clearing to avoid crash
+            LOGGER.debug("stop_stream: ignore error while leaving/clearing for chat %s", chat_id)
 
     async def stop_stream_force(self, chat_id: int):
+        # Try leaving on all assistants that exist
         try:
             if config.STRING1:
                 await self.one.leave_group_call(chat_id)
-        except:
+        except Exception:
             pass
         try:
             if config.STRING2:
                 await self.two.leave_group_call(chat_id)
-        except:
+        except Exception:
             pass
         try:
             if config.STRING3:
                 await self.three.leave_group_call(chat_id)
-        except:
+        except Exception:
             pass
         try:
             if config.STRING4:
                 await self.four.leave_group_call(chat_id)
-        except:
+        except Exception:
             pass
         try:
             if config.STRING5:
                 await self.five.leave_group_call(chat_id)
-        except:
+        except Exception:
             pass
         try:
             await _clear_(chat_id)
-        except:
+        except Exception:
             pass
 
     async def speedup_stream(self, chat_id: int, file_path, speed, playing):
@@ -176,7 +178,7 @@ class Call(PyTgCalls):
             base = os.path.basename(file_path)
             chatdir = os.path.join(os.getcwd(), "playback", str(speed))
             if not os.path.isdir(chatdir):
-                os.makedirs(chatdir)
+                os.makedirs(chatdir, exist_ok=True)
             out = os.path.join(chatdir, base)
             if not os.path.isfile(out):
                 if str(speed) == str("0.5"):
@@ -243,14 +245,15 @@ class Call(PyTgCalls):
         assistant = await group_assistant(self, chat_id)
         try:
             check = db.get(chat_id)
-            check.pop(0)
-        except:
+            if isinstance(check, list):
+                check.pop(0)
+        except Exception:
             pass
         await remove_active_video_chat(chat_id)
         await remove_active_chat(chat_id)
         try:
             await assistant.leave_group_call(chat_id)
-        except:
+        except Exception:
             pass
 
     async def skip_stream(
@@ -377,6 +380,7 @@ class Call(PyTgCalls):
         - If queued is missing/None or malformed, it will skip the bad entry and attempt to continue.
         - Logs helpful diagnostics instead of letting TypeError / others bubble uncaught.
         """
+        # Top-level guard to avoid unhandled exceptions escaping the event loop
         try:
             check = db.get(chat_id)
             if not check:
@@ -721,6 +725,16 @@ class Call(PyTgCalls):
                         )
                         db[chat_id][0]["mystic"] = run
                         db[chat_id][0]["markup"] = "tg"
+
+            except Exception as e:
+                # handle errors that occurred during constructing/changing the stream
+                LOGGER.exception("change_stream: error while processing queued item for chat %s: %s", chat_id, e)
+                try:
+                    await _clear_(chat_id)
+                    await client.leave_group_call(chat_id)
+                except Exception:
+                    LOGGER.debug("change_stream: failed to clear/leave after processing error for chat %s", chat_id)
+                return
 
         except Exception as e:
             # Catch-all to avoid unhandled exceptions bubbling out of the event loop
