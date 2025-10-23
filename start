@@ -1,14 +1,1 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-# Jika COOKIE_FILE_CONTENT diset, tulis ke /app/cookies.txt (Heroku writable)
-if [ -n "${COOKIE_FILE_CONTENT:-}" ]; then
-  printf '%s' "$COOKIE_FILE_CONTENT" > /app/cookies.txt
-  echo "Wrote cookies to /app/cookies.txt"
-fi
-
-# Optional: upgrade yt-dlp at boot (jika ingin selalu versi terbaru)
-# python -m pip install --upgrade yt-dlp >/dev/null
-
-# Jalankan aplikasi
-python -m ShrutiMusic
+python3 -m ShrutiMusic
