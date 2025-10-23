@@ -23,13 +23,10 @@
 import random
 import asyncio
 from datetime import date
-from typing import Dict, List, Union, Optional
+from typing import Dict, List, Union
 
-from ShrutiMusic import userbot, LOGGER
+from ShrutiMusic import userbot
 from ShrutiMusic.core.mongo import mongodb
-from ShrutiMusic.utils.exceptions import AssistantErr
-
-_log = LOGGER(__name__)
 
 authdb = mongodb.adminauth
 authuserdb = mongodb.authuser
@@ -69,35 +66,22 @@ playtype = {}
 skipmode = {}
 
 
-async def get_assistant_number(chat_id: int) -> Optional[int]:
-    """
-    Return the assistant number assigned to chat_id, or None if not set.
-    """
+async def get_assistant_number(chat_id: int) -> str:
     assistant = assistantdict.get(chat_id)
     return assistant
 
 
 async def get_client(assistant: int):
-    """
-    Return the corresponding userbot client for assistant number.
-    Returns None if assistant number is invalid.
-    """
-    try:
-        a = int(assistant)
-    except Exception:
-        return None
-
-    if a == 1:
+    if int(assistant) == 1:
         return userbot.one
-    elif a == 2:
+    elif int(assistant) == 2:
         return userbot.two
-    elif a == 3:
+    elif int(assistant) == 3:
         return userbot.three
-    elif a == 4:
+    elif int(assistant) == 4:
         return userbot.four
-    elif a == 5:
+    elif int(assistant) == 5:
         return userbot.five
-    return None
 
 
 async def set_assistant_new(chat_id, number):
@@ -110,92 +94,50 @@ async def set_assistant_new(chat_id, number):
 
 
 async def set_assistant(chat_id):
-    """
-    Picks a random assistant from configured assistants and returns its userbot client.
-    Raises AssistantErr if no assistants are configured.
-    """
     from ShrutiMusic.core.userbot import assistants
 
-    if not assistants:
-        _log.warning("Attempted to set assistant for chat %s but no assistants configured.", chat_id)
-        raise AssistantErr("No assistant sessions configured. Please add assistant session strings.")
-
-    try:
-        ran_assistant = random.choice(assistants)
-    except (IndexError, ValueError) as e:
-        _log.exception("Failed to pick random assistant for chat %s: %s", chat_id, e)
-        raise AssistantErr("No assistant sessions available.") from e
-
+    ran_assistant = random.choice(assistants)
     assistantdict[chat_id] = ran_assistant
     await assdb.update_one(
         {"chat_id": chat_id},
         {"$set": {"assistant": ran_assistant}},
         upsert=True,
     )
-    userbot_client = await get_client(ran_assistant)
-    if not userbot_client:
-        _log.error("Selected assistant %s for chat %s has no corresponding client.", ran_assistant, chat_id)
-        raise AssistantErr("Selected assistant client is not available.")
-    return userbot_client
+    userbot = await get_client(ran_assistant)
+    return userbot
 
 
-async def get_assistant(chat_id: int):
-    """
-    Return the userbot client assigned to chat_id.
-    If no assignment exists, attempt to set one.
-    Raises AssistantErr if no assistants are configured.
-    """
+async def get_assistant(chat_id: int) -> str:
     from ShrutiMusic.core.userbot import assistants
 
     assistant = assistantdict.get(chat_id)
     if not assistant:
         dbassistant = await assdb.find_one({"chat_id": chat_id})
         if not dbassistant:
-            # will raise AssistantErr if no assistants configured
-            userbot_client = await set_assistant(chat_id)
-            return userbot_client
+            userbot = await set_assistant(chat_id)
+            return userbot
         else:
-            got_assis = dbassistant.get("assistant")
+            got_assis = dbassistant["assistant"]
             if got_assis in assistants:
                 assistantdict[chat_id] = got_assis
-                userbot_client = await get_client(got_assis)
-                if userbot_client:
-                    return userbot_client
-                # Fallthrough: try to set a new assistant
-            # If stored assistant invalid or client missing, pick a new one
-            userbot_client = await set_assistant(chat_id)
-            return userbot_client
+                userbot = await get_client(got_assis)
+                return userbot
+            else:
+                userbot = await set_assistant(chat_id)
+                return userbot
     else:
-        from ShrutiMusic.core.userbot import assistants as _assistants
-        if assistant in _assistants:
-            userbot_client = await get_client(assistant)
-            if userbot_client:
-                return userbot_client
-            # If client mapping missing, pick a new one
-            userbot_client = await set_assistant(chat_id)
-            return userbot_client
-        # stored assistant not valid, pick a new one
-        userbot_client = await set_assistant(chat_id)
-        return userbot_client
+        if assistant in assistants:
+            userbot = await get_client(assistant)
+            return userbot
+        else:
+            userbot = await set_assistant(chat_id)
+            return userbot
 
 
 async def set_calls_assistant(chat_id):
-    """
-    Similar to set_assistant but returns the raw assistant number.
-    Raises AssistantErr if no assistants configured.
-    """
     from ShrutiMusic.core.userbot import assistants
 
-    if not assistants:
-        _log.warning("Attempted to set calls assistant for chat %s but no assistants configured.", chat_id)
-        raise AssistantErr("No assistant sessions configured.")
-
-    try:
-        ran_assistant = random.choice(assistants)
-    except (IndexError, ValueError) as e:
-        _log.exception("Failed to pick random assistant number for chat %s: %s", chat_id, e)
-        raise AssistantErr("No assistant sessions available.") from e
-
+    ran_assistant = random.choice(assistants)
     assistantdict[chat_id] = ran_assistant
     await assdb.update_one(
         {"chat_id": chat_id},
@@ -205,16 +147,8 @@ async def set_calls_assistant(chat_id):
     return ran_assistant
 
 
-async def group_assistant(self, chat_id: int):
-    """
-    Return the PyTgCalls client instance (self.one/.../self.five) for the assistant
-    assigned to chat_id. Raises AssistantErr if assistants are not configured.
-    """
+async def group_assistant(self, chat_id: int) -> int:
     from ShrutiMusic.core.userbot import assistants
-
-    if not assistants:
-        _log.error("No assistants configured. group_assistant cannot proceed for chat %s", chat_id)
-        raise AssistantErr("No assistant sessions configured.")
 
     assistant = assistantdict.get(chat_id)
     if not assistant:
@@ -222,7 +156,7 @@ async def group_assistant(self, chat_id: int):
         if not dbassistant:
             assis = await set_calls_assistant(chat_id)
         else:
-            assis = dbassistant.get("assistant")
+            assis = dbassistant["assistant"]
             if assis in assistants:
                 assistantdict[chat_id] = assis
                 assis = assis
@@ -233,30 +167,21 @@ async def group_assistant(self, chat_id: int):
             assis = assistant
         else:
             assis = await set_calls_assistant(chat_id)
-
-    try:
-        a = int(assis)
-    except Exception:
-        _log.error("Invalid assistant id %s for chat %s", assis, chat_id)
-        raise AssistantErr("Invalid assistant id.")
-
-    if a == 1:
+    if int(assis) == 1:
         return self.one
-    elif a == 2:
+    elif int(assis) == 2:
         return self.two
-    elif a == 3:
+    elif int(assis) == 3:
         return self.three
-    elif a == 4:
+    elif int(assis) == 4:
         return self.four
-    elif a == 5:
+    elif int(assis) == 5:
         return self.five
-    _log.error("Assistant number %s out of range for chat %s", a, chat_id)
-    raise AssistantErr("Assistant number out of range.")
 
 
 async def is_skipmode(chat_id: int) -> bool:
     mode = skipmode.get(chat_id)
-    if mode is None:
+    if not mode:
         user = await skipdb.find_one({"chat_id": chat_id})
         if not user:
             skipmode[chat_id] = True
@@ -282,7 +207,7 @@ async def skip_off(chat_id: int):
 
 async def get_upvote_count(chat_id: int) -> int:
     mode = count.get(chat_id)
-    if mode is None:
+    if not mode:
         mode = await countdb.find_one({"chat_id": chat_id})
         if not mode:
             return 5
