@@ -1,1 +1,8 @@
-python3 -m ShrutiMusic
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Optional: install/upgrade yt-dlp at runtime (comment jika tidak perlu)
+# python -m pip install --upgrade yt-dlp
+
+# Jalankan aplikasi utama. Sesuaikan jika entrypoint berbeda.
+python -m ShrutiMusic
