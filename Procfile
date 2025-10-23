@@ -1,2 +1,1 @@
-worker: python -m ShrutiMusic
-
+worker: bash start
