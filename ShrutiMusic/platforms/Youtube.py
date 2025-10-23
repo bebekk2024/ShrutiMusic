@@ -20,14 +20,37 @@ VIDEO_API_URL = getenv("VIDEO_API_URL", 'https://api.video.thequickearn.xyz')
 API_KEY = getenv("API_KEY", None)
 
 def cookie_txt_file():
-    cookie_dir = "ShrutiMusic/cookies"
-    if not os.path.exists(cookie_dir):
-        return None
-    cookies_files = [f for f in os.listdir(cookie_dir) if f.endswith(".txt")]
-    if not cookies_files:
-        return None
-    cookie_file = os.path.join(cookie_dir, random.choice(cookies_files))
-    return cookie_file
+    """
+    Locate cookie file, in order:
+      1) COOKIE_FILE_PATH env var
+      2) /app/cookies.txt (Heroku start script writes COOKIE_FILE_CONTENT -> /app/cookies.txt)
+      3) ShrutiMusic/cookies/*.txt
+      4) common names in cwd (cookies.txt, cookie.txt, cookies(2).txt)
+    Returns: path string or None
+    """
+    # 1) explicit env path
+    env_path = os.getenv("COOKIE_FILE_PATH")
+    if env_path and os.path.exists(env_path):
+        return env_path
+
+    # 2) heroku write path
+    heroku_path = "/app/cookies.txt"
+    if os.path.exists(heroku_path):
+        return heroku_path
+
+    # 3) repo cookies folder
+    cookie_dir = os.path.join(os.getcwd(), "ShrutiMusic", "cookies")
+    if os.path.isdir(cookie_dir):
+        cookies_files = [os.path.join(cookie_dir, f) for f in os.listdir(cookie_dir) if f.endswith(".txt")]
+        if cookies_files:
+            return random.choice(cookies_files)
+
+    # 4) common names in cwd
+    for name in ("cookies.txt", "cookie.txt", "cookies(2).txt"):
+        if os.path.exists(name):
+            return name
+
+    return None
 
 async def download_song_api(link: str):
     """Download song using API"""
@@ -401,35 +424,52 @@ class YouTubeAPI:
             thumbnail = result["thumbnails"][0]["url"].split("?")[0]
         return thumbnail
 
-    async def video(self, link: str, videoid: Union[bool, str] = None):
+        async def video(self, link: str, videoid: Union[bool, str] = None):
         if videoid:
             link = self.base + link
         if "&" in link:
             link = link.split("&")[0]
         
+        # Try combined (API/download) first
         downloaded_file = await download_video_combined(link)
         if downloaded_file:
             return 1, downloaded_file
         
         cookie_file = cookie_txt_file()
         if not cookie_file:
-            return 0, "No cookies found. Cannot download video."
-            
-        proc = await asyncio.create_subprocess_exec(
-            "yt-dlp",
-            "--cookies", cookie_file,
-            "-g",
-            "-f",
-            "best[height<=?720][width<=?1280]",
-            f"{link}",
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await proc.communicate()
-        if stdout:
-            return 1, stdout.decode().split("\n")[0]
-        else:
-            return 0, stderr.decode()
+            return 0, "No cookies found. Cannot download video. Please set COOKIE_FILE_CONTENT in Heroku config or provide cookie file."
+
+        # Run yt-dlp subprocess to get direct URL (-g). Handle stderr & returncode.
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "yt-dlp",
+                "--cookies", cookie_file,
+                "-g",
+                "-f",
+                "best[height<=?720][width<=?1280]",
+                f"{link}",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await proc.communicate()
+            out = stdout.decode().strip() if stdout else ""
+            err = stderr.decode().strip() if stderr else ""
+
+            if out:
+                # first line is the direct media URL
+                return 1, out.split("\n")[0]
+
+            # No stdout = failure, analyze stderr
+            if "HTTP Error 403" in err or "403" in err or "Forbidden" in err:
+                # give actionable message
+                return 0, "HTTP Error 403: Forbidden (yt-dlp). Try exporting fresh YouTube cookies and set COOKIE_FILE_CONTENT in Heroku, or update yt-dlp."
+            if "Sign in" in err or "accounts.google.com" in err:
+                return 0, "Sign in required: cookies are invalid or expired."
+            # fallback: return stderr content (shortened)
+            return 0, (err or "yt-dlp did not return a URL (unknown error).")[:1500]
+        except Exception as e:
+            # unexpected failure launching yt-dlp
+            return 0, f"yt-dlp subprocess error: {e}"
 
     async def playlist(self, link, limit, user_id, videoid: Union[bool, str] = None):
         if videoid:
