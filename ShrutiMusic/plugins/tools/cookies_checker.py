@@ -14,7 +14,7 @@ from pyrogram.types import Message
 from ShrutiMusic import app
 
 
-YOUTUBE_TEST_VIDEO = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+YOUTUBE_TEST_VIDEO = "https://m.youtube.com/watch?v=u_15ggPEi8w"
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
 
 
