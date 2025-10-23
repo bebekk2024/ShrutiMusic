@@ -22,6 +22,11 @@
       "value": "599574f6aff0a09ebb76305b58e7e9c2",
       "required": true
     },
+    "API_KEY": {
+      "description": "Get this value from https://panel.thequickearn.xyz/signup?ref=NGBM6HYNQKU",
+      "value": "",
+      "required": true
+    },
     "BOT_TOKEN": {
       "description": "A Bot's token from Botfather",
       "value": "",
@@ -78,12 +83,12 @@
       "required": true
     },
     "SUPPORT_GROUP": {
-      "description": "Your support group username (without @)",
+      "description": "Your support group link",
       "value": "https://t.me/ShrutiBotsupport",
       "required": false
     },
     "SUPPORT_CHANNEL": {
-      "description": "Your support channel username (without @)",
+      "description": "Your support channel link",
       "value": "https://t.me/ShrutiBots",
       "required": false
     },
@@ -105,11 +110,6 @@
     "DONATE": {
       "description": "Link where people can support/donate",
       "value": "https://t.me/ShrutiBots/91",
-      "required": false
-    },
-    "COOKIE_URL": {
-      "description": "An additional API key for your bot (if needed)",
-      "value": "Need , IF You Didn't add Cookies file in cookies folder",
       "required": false
     },
     "START_IMG_URL": {
