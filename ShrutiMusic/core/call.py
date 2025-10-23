@@ -747,3 +747,11 @@ class Call(PyTgCalls):
                     "change_stream: failed to clear/leave after unexpected error for chat %s", chat_id
                 )
             return
+
+
+# Instantiate the Call singleton expected by other modules (e.g. __main__.py imports `Nand`)
+try:
+    Nand = Call()
+except Exception as e:
+    LOGGER.exception("Failed to instantiate Call() as Nand on import: %s", e)
+    Nand = None
