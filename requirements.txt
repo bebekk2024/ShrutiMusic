@@ -26,9 +26,9 @@ spotipy
 tgcrypto
 telegraph 
 unidecode
-yt-dlp
 youtube-search
 youtube-search-python
+git+https://github.com/yt-dlp/yt-dlp.git
 # ===========================================
 # ©️ 2025 Nand Yaduwanshi , aka @NoxxOP
 # 🔗 GitHub : https://github.com/NoxxOP/ShrutiMusic
