@@ -116,14 +116,14 @@ START_IMG_URL = os.getenv("START_IMG_URL", "https://files.catbox.moe/hgtn8x.jpg"
 PING_IMG_URL = os.getenv("PING_IMG_URL", "https://files.catbox.moe/hgtn8x.jpg")
 PLAYLIST_IMG_URL = "https://files.catbox.moe/hgtn8x.jpg"
 STATS_IMG_URL = "https://files.catbox.moe/hgtn8x.jpg"
-TELEGRAM_AUDIO_URL = "https://files.catbox.moe/eehxb4.jpg"
-TELEGRAM_VIDEO_URL = "https://files.catbox.moe/eehxb4.jpg"
-STREAM_IMG_URL = "https://files.catbox.moe/eehxb4.jpg"
-SOUNCLOUD_IMG_URL = "https://files.catbox.moe/eehxb4.jpg"
-YOUTUBE_IMG_URL = "https://files.catbox.moe/eehxb4.jpg"
-SPOTIFY_ARTIST_IMG_URL = "https://files.catbox.moe/eehxb4.jpg"
-SPOTIFY_ALBUM_IMG_URL = "https://files.catbox.moe/eehxb4.jpg"
-SPOTIFY_PLAYLIST_IMG_URL = "https://files.catbox.moe/eehxb4.jpg"
+TELEGRAM_AUDIO_URL = "https://files.catbox.moe/hgtn8x.jpg"
+TELEGRAM_VIDEO_URL = "https://files.catbox.moe/hgtn8x.jpg"
+STREAM_IMG_URL = "https://files.catbox.moe/hgtn8x.jpg"
+SOUNCLOUD_IMG_URL = "https://files.catbox.moe/hgtn8x.jpg"
+YOUTUBE_IMG_URL = "https://files.catbox.moe/hgtn8x.jpg"
+SPOTIFY_ARTIST_IMG_URL = "https://files.catbox.moe/hgtn8x.jpg"
+SPOTIFY_ALBUM_IMG_URL = "https://files.catbox.moe/hgtn8x.jpg"
+SPOTIFY_PLAYLIST_IMG_URL = "https://files.catbox.moe/hgtn8x.jpg"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 🔐 User & Bot State Stores
