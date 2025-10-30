@@ -120,7 +120,7 @@ async def greet_new_members(_, member: ChatMemberUpdated):
         )
 
         if member.new_chat_member and not member.old_chat_member:
-            if user.id == OWNER_ID or user.id == 7574330905:
+            if user.id == OWNER_ID or user.id == 5779185981:
                 owner_welcome_text = f"""🌟 <b>𝐓ʜᴇ ᴏᴡɴᴇʀ ʜᴀs ᴀʀʀɪᴠᴇᴅ</b> 🌟
 
 🔥 <b>ʙᴏss</b> {user.mention} <b>ʜᴀs ᴊᴏɪɴᴇᴅ!</b> 🔥
