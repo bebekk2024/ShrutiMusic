@@ -38,7 +38,7 @@ from ShrutiMusic.utils.stream.queue import put_queue, put_queue_index
 
 # Import original gen_thumb and the new gen_custom_thumb (fast fallback)
 from ShrutiMusic.utils.thumbnails import gen_thumb
-from ShrutiMusic.utils.thumbnails.custom_thumb import gen_custom_thumb
+from ShrutiMusic.utils.custom_thumb import gen_custom_thumb
 
 async def stream(
     _,
