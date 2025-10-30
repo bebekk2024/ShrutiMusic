@@ -35,8 +35,10 @@ from ShrutiMusic.utils.exceptions import AssistantErr
 from ShrutiMusic.utils.inline import aq_markup, close_markup, stream_markup
 from ShrutiMusic.utils.pastebin import NandBin
 from ShrutiMusic.utils.stream.queue import put_queue, put_queue_index
-from ShrutiMusic.utils.thumbnails import gen_thumb
 
+# Import original gen_thumb and the new gen_custom_thumb (fast fallback)
+from ShrutiMusic.utils.thumbnails import gen_thumb
+from ShrutiMusic.utils.thumbnails.custom_thumb import gen_custom_thumb
 
 async def stream(
     _,
@@ -120,7 +122,18 @@ async def stream(
                     "video" if video else "audio",
                     forceplay=forceplay,
                 )
-                img = await gen_thumb(vidid)
+
+                # Generate custom thumbnail with "Capricorn Music"
+                try:
+                    src_thumb = thumbnail if isinstance(thumbnail, str) else None
+                    img = await gen_custom_thumb(vidid, src_thumb)
+                except Exception:
+                    # fallback to original generator or static image
+                    try:
+                        img = await gen_thumb(vidid)
+                    except Exception:
+                        img = "ShrutiMusic/static/capricorn.jpg"
+
                 button = stream_markup(_, chat_id)
                 run = await app.send_photo(
                     original_chat_id,
@@ -214,7 +227,17 @@ async def stream(
                 "video" if video else "audio",
                 forceplay=forceplay,
             )
-            img = await gen_thumb(vidid)
+
+            # Generate custom thumbnail with "Capricorn Music"
+            try:
+                src_thumb = thumbnail if isinstance(thumbnail, str) else None
+                img = await gen_custom_thumb(vidid, src_thumb)
+            except Exception:
+                try:
+                    img = await gen_thumb(vidid)
+                except Exception:
+                    img = "ShrutiMusic/static/capricorn.jpg"
+
             button = stream_markup(_, chat_id)
             run = await app.send_photo(
                 original_chat_id,
@@ -382,7 +405,17 @@ async def stream(
                 "video" if video else "audio",
                 forceplay=forceplay,
             )
-            img = await gen_thumb(vidid)
+
+            # Generate custom thumbnail with "Capricorn Music"
+            try:
+                src_thumb = thumbnail if isinstance(thumbnail, str) else None
+                img = await gen_custom_thumb(vidid, src_thumb)
+            except Exception:
+                try:
+                    img = await gen_thumb(vidid)
+                except Exception:
+                    img = "ShrutiMusic/static/capricorn.jpg"
+
             button = stream_markup(_, chat_id)
             run = await app.send_photo(
                 original_chat_id,
@@ -457,6 +490,3 @@ async def stream(
 # 🔗 GitHub : https://github.com/NoxxOP/ShrutiMusic
 # 📢 Telegram Channel : https://t.me/ShrutiBots
 # ===========================================
-
-
-# ❤️ Love From ShrutiBots 
