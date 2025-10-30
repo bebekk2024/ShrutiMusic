@@ -175,8 +175,8 @@ queue_6 : "<b>🕚 ᴅᴜʀᴀᴛɪᴏɴ :</b> 𝖴𝗇𝗄𝗇𝗈𝗐𝗇 𝖣
 queue_7 : "\n𝖢𝗅𝗂𝖼𝗄 𝖮𝗇 𝖳𝗁𝖾 𝖡𝗎𝗍𝗍𝗈𝗇 𝖡𝖾𝗅𝗈𝗐 𝖳𝗈 𝖦𝖾𝗍 𝖶𝗁𝗈𝗅𝖾 𝖰𝗎𝖾𝗎𝖾𝖽 𝖫𝗂𝗌𝗍 ."
 queue_8 : "<b>{0} 𝖯𝗅𝖺𝗒𝖾𝗋</b>\n\n <b>𝖲𝗍𝗋𝖾𝖺𝗆𝗂𝗇𝗀 :</b> {1}\n\n🔗 <b>𝖲𝗍𝗋𝖾𝖺𝗆 𝖳𝗒𝗉𝖾 :</b> {2}\n <b> 𝖱𝖾𝗊𝗎𝖾𝗌𝗍𝖾𝖽 𝖡𝗒 :</b> {3}\n{4}"
 
-stream_1 : "<blockquote><b>🗒️ Memulai Streaming \n\n🏷Judul : <a href={0}>{1}</a>\n⏳Durasi : {2} Menit\n👤Ditambahkan Oleh : {3}</b></blockquote>"
-stream_2 : "<blockquote><b>🗒️ Memulai Streaming \n\nStreaming Langsung : Streaming Langsung [URL]\n👤Ditambahkan Oleh : {0}</b></blockquote>"
+stream_1 : "<blockquote><b>🗒️ Memulai Streaming \n\n🏷Judul : <a href={0}>{1}</a>\n⏳Durasi : {2} Menit\n👤Diminta Oleh : {3}</b></blockquote>"
+stream_2 : "<blockquote><b>🗒️ Memulai Streaming \n\nStreaming Langsung : Streaming Langsung [URL]\n👤Diminta Oleh : {0}</b></blockquote>"
 
 
 CLOSE_BUTTON : "🗑 Cʟᴏꜱᴇ"
@@ -304,17 +304,17 @@ maint_3 : "» {0} 𝖬𝖺𝗂𝗇𝗍𝖾𝗇𝖺𝗇𝖼𝖾 𝖬𝗈𝖽𝖾 
 maint_4 : "» 𝖬𝖺𝗂𝗇𝗍𝖾𝗇𝖺𝗇𝖼𝖾 𝖬𝗈𝖽𝖾 𝖨𝗌 𝖠𝗅𝗋𝖾𝖺𝖽𝗒 𝖤𝗇𝖺𝖻𝗅𝖾𝖽 ."
 maint_5 : "» 𝖬𝖺𝗂𝗇𝗍𝖾𝗇𝖺𝗇𝖼𝖾 𝖬𝗈𝖽𝖾 𝖨𝗌 𝖠𝗅𝗋𝖾𝖺𝖽𝗒 𝖣𝗂𝗌𝖺𝖻𝗅𝖾𝖽 ."
 
-log_1 : "<b>𝖤𝗑𝖺𝗆𝗉𝗅𝖾 :</b>\n/logger [ 𝖤𝗇𝖺𝖻𝗅𝖾 | 𝖣𝗂𝗌𝖺𝖻𝗅𝖾 ]"
-log_2 : "𝖤𝗇𝖺𝖻𝗅𝖾𝖽 𝖫𝗈𝗀𝗀𝗂𝗇𝗀 ."
-log_3 : "𝖣𝗂𝗌𝖺𝖻𝗅𝖾𝖽 𝖫𝗈𝗀𝗀𝗂𝗇𝗀 ."
+log_1 : "**Penggunaan:**\n/logger [aktifkan|nonaktifkan]"
+log_2 : "Logging Diaktifkan"
+log_3 : "Logging Dinonaktifkan"
 
 broad_1 : "» 𝖲𝗍𝖺𝗋𝗍𝖾𝖽 𝖡𝗋𝗈𝖺𝖽𝖼𝖺𝗌𝗍𝗂𝗇𝗀 ..."
 broad_2 : "<b>𝖤𝗑𝖺𝗆𝗉𝗅𝖾 :</b>\n\n/broadcast [ 𝖬𝖾𝗌𝗌𝖺𝗀𝖾 𝖮𝗋 𝖱𝖾𝗉𝗅𝗒 𝖳𝗈 𝖠 𝖬𝖾𝗌𝗌𝖺𝗀𝖾 ]"
-broad_3 : "» 𝖡𝗋𝗈𝖺𝖽𝖼𝖺𝗌𝗍𝖾𝖽 𝖬𝖾𝗌𝗌𝖺𝗀𝖾𝗌 𝖳𝗈 {0}  𝖢𝗁𝖺𝗍𝗌 𝖶𝗂𝗍𝗁 {1} 𝖯𝗂𝗇𝗌 𝖥𝗋𝗈𝗆 𝖳𝗁𝖾 𝖡𝗈𝗍 ."
-broad_4 : "» 𝖡𝗋𝗈𝖺𝖽𝖼𝖺𝗌𝗍𝖾𝖽 𝖬𝖾𝗌𝗌𝖺𝗀𝖾𝗌 𝖳𝗈 {0} 𝖴𝗌𝖾𝗋𝗌 ."
+broad_3 : "<blockquote><b>**Broadcast {0} Obrolan dengan {1} Pin dari Bot.**</b></blockquote>"
+broad_4 : "<blockquote><b>**Broadcast {0} Pengguna.**</b></blockquote>"
 broad_5 : "» 𝖲𝗍𝖺𝗋𝗍𝗂𝗇𝗀 𝖠𝗌𝗌𝗂𝗌𝗍𝖺𝗇𝗍 𝖡𝗋𝗈𝖺𝖽𝖼𝖺𝗌𝗍 ..."
 broad_6 : "➻ 𝖠𝗌𝗌𝗂𝗌𝗍𝖺𝗇𝗍 𝖡𝗋𝗈𝖺𝖽𝖼𝖺𝗌𝗍 :\n\n"
-broad_7 : "↬ 𝖠𝗌𝗌𝗂𝗌𝗍𝖺𝗇𝗍 {0} 𝖡𝗋𝗈𝖺𝖽𝖼𝖺𝗌𝗍𝖾𝖽 𝖨𝗇 {1} 𝖢𝗁𝖺𝗍𝗌 ."
+broad_7 : "<blockquote><b>Asisten {0} Disiarkan di {1} obrolan\n</b></blockquote>"
 broad_8 : "» 𝖯𝗅𝖾𝖺𝗌𝖾 𝖯𝗋𝗈𝗏𝗂𝖽𝖾 𝖲𝗈𝗆𝖾 𝖳𝖾𝗑𝗍 𝖳𝗈 𝖡𝗋𝗈𝖺𝖽𝖼𝖺𝗌𝗍 ."
 
 server_1 : "» 𝖥𝖺𝗂𝗅𝖾𝖽 𝖳𝗈 𝖦𝖾𝗍 𝖫𝗈𝗀𝗌 ."
@@ -345,6 +345,7 @@ gban_9 : "» 𝖫𝗂𝖿𝗍𝖾𝖽 𝖦𝗅𝗈𝖻𝖺𝗅 𝖡𝖺𝗇 𝖥
 gban_10 : "» 𝖭𝗈 𝖮𝗇𝖾 𝖨 𝖦𝗅𝗈𝖻𝖺𝗅𝗅𝗒 𝖡𝖺𝗇𝗇𝖾𝖽 𝖥𝗋𝗈𝗆  𝖳𝗁𝖾 𝖡𝗈𝗍 ."
 gban_11 : "» 𝖥𝖾𝗍𝖼𝗁𝗂𝗇𝗀 𝖦𝖻𝖺𝗇𝗇𝖾𝖽 𝖴𝗌𝖾𝗋𝗌 𝖫𝗂𝗌𝗍 ..."
 gban_12 : "🙂 <b>𝖦𝗅𝗈𝖻𝖺𝗅𝗅𝗒 𝖡𝖺𝗇𝗇𝖾𝖽 𝖴𝗌𝖾𝗋𝗌 :</b>\n\n"
+
 
 
 
