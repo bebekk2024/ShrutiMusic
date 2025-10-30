@@ -140,7 +140,7 @@ async def restart_(_, message):
         try:
             await app.send_message(
                 chat_id=int(x),
-                text=f"{app.mention} ɪs ʀᴇsᴛᴀʀᴛɪɴɢ...\n\nʏᴏᴜ ᴄᴀɴ sᴛᴀʀᴛ ᴩʟᴀʏɪɴɢ ᴀɢᴀɪɴ ᴀғᴛᴇʀ 15-20 sᴇᴄᴏɴᴅs.",
+                text=f"{app.mention} ɪs ʀᴇsᴛᴀʀᴛɪɴɢ...\n\nᴀɴᴅᴀ ᴅᴀᴘᴀᴛ ᴍᴜʟᴀɪ ʙᴇʀᴍᴀɪɴ ʟᴀɢɪ sᴇᴛᴇʟᴀʜ 𝟷𝟻-𝟸𝟶 ᴅᴇᴛɪᴋ.",
             )
             await remove_active_chat(x)
             await remove_active_video_chat(x)
@@ -154,7 +154,7 @@ async def restart_(_, message):
     except:
         pass
     await response.edit_text(
-        "» ʀᴇsᴛᴀʀᴛ ᴘʀᴏᴄᴇss sᴛᴀʀᴛᴇᴅ, ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ ғᴏʀ ғᴇᴡ sᴇᴄᴏɴᴅs ᴜɴᴛɪʟ ᴛʜᴇ ʙᴏᴛ sᴛᴀʀᴛs..."
+        "» ʟᴀɢɪ sᴀʏᴀ ʀᴇsᴛᴀʀᴛ, sᴀʙᴀʀ ᴅᴜʟᴜ ɢᴀ ʟᴀᴍᴀ ᴋᴏ..."
     )
     os.system(f"kill -9 {os.getpid()} && bash start")
 
