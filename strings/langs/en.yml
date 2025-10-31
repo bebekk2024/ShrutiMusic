@@ -136,7 +136,7 @@ cplay_6 : "kamu harus menjadi Pemilik channel {0} untuk menghubungkannya dengan 
 cplay_7 : "Obrolan ini tidak memiliki channel tertaut ."
 
 play_1 : "<blockquote><b>♲ Proses...</b></blockquote>"
-play_2 : "<blockquote><b>🏷Mode Putar Channel\n\n🔄 Memproses Kueri... Harap Tunggu!\n**Saluran Tertaut: {0} </b></blockquote>"
+play_2 : "<blockquote><b>🏷Mode Putar Channel\n\n🔄 Memproses Kueri... Harap Tunggu!\nSaluran Tertaut: {0} </b></blockquote>"
 play_3 : "<blockquote><b>Gagal Memproses permintaan kamu!</b></blockquote>"
 play_4 : "<blockquote><b>🖇 Admin Only Play\nHanya Admin dan Pengguna Auth yang dapat memutar musik di grup ini.\n\nUbah mode melalui /playmode dan jika kamu sudah menjadi admin, muat ulang admincache melalui /admincache</b></blockquote>"
 play_5 : "<blockquote><b>Gagal memproses file audio.\n\nUkuran File Audio Harus Kurang dari 100 mb</b></blockquote>"
@@ -166,16 +166,16 @@ str_3 : "Tidak dapat melakukan streaming streaming langsung youtube. Format Lang
 ping_1 : "<blockquote><b>{0} 𝖨𝗌 𝖯𝗂𝗇𝗀𝗂𝗇𝗀 ...</b></blockquote>"
 ping_2 : "<blockquote><b>🏓 𝖯𝗈𝗇𝗀 : <code>{0}ᴍs</code>\n\n<b><u>{1} 𝖲𝗒𝗌𝗍𝖾𝗆 𝖲𝗍𝖺𝗍𝗌 :</u></b>\n\n↬ 𝖴𝗉𝖳𝗂𝗆𝖾 : {2}\n↬ 𝖱𝖠𝖬 : {3}\n↬ 𝖢𝖯𝖴 : {4}\n↬ 𝖣𝗂𝗌𝗄 : {5}\n↬ 𝖯𝗒-𝖳𝗀𝖼𝖺𝗅𝗅𝗌 : <code>{6}ᴍs</code></b></blockquote>"
 
-queue_1 : "<blockquote><b>Mohon Tunggu..Mengambil Antrian..</b></blockquote>"
+queue_1 : "<blockquote><b>🔄 Mohon Tunggu..Mengambil Antrian..</b></blockquote>"
 queue_2 : "<blockquote><b>Daftar Antrian kosong. Tidak ada trek yang ditemukan</b></blockquote>"
 queue_3 : "<blockquote><b><u>Trek Antrian:</u> [Lihat Trek Antrian Lainnya Dari Sini]({0})</b></blockquote>"
-queue_4 : "<blockquote><b>⏳ Ditambahkan ke Antrian di {0}\n\nJudul: {1}\n⏰Durasi: {2} Menit\n👤Ditambahkan Oleh: {3}</b></blockquote>"
+queue_4 : "<blockquote><b>⏳ Ditambahkan ke Antrian {0}\n\nJudul : {1}\n⏰Durasi : {2} Menit\n👤Ditambahkan Oleh : {3}</b></blockquote>"
 queue_5 : "<blockquote><b>Hanya satu track di dalam antrian, Silahkan tambahkan lagi untuk check list</b></blockquote>"
 queue_6 : "<b>🕚 ᴅᴜʀᴀᴛɪᴏɴ :</b> 𝖴𝗇𝗄𝗇𝗈𝗐𝗇 𝖣𝗎𝗋𝖺𝗍𝗂𝗈𝗇 𝖲𝗍𝗋𝖾𝖺𝗆\n\n𝖢𝗅𝗂𝖼𝗄 𝖮𝗇 𝖳𝗁𝖾 𝖡𝗎𝗍𝗍𝗈𝗇 𝖡𝖾𝗅𝗈𝗐 𝖳𝗈 𝖦𝖾𝗍 𝖶𝗁𝗈𝗅𝖾 𝖰𝗎𝖾𝗎𝖾𝖽 𝖫𝗂𝗌𝗍 ."
 queue_7 : "\n𝖢𝗅𝗂𝖼𝗄 𝖮𝗇 𝖳𝗁𝖾 𝖡𝗎𝗍𝗍𝗈𝗇 𝖡𝖾𝗅𝗈𝗐 𝖳𝗈 𝖦𝖾𝗍 𝖶𝗁𝗈𝗅𝖾 𝖰𝗎𝖾𝗎𝖾𝖽 𝖫𝗂𝗌𝗍 ."
 queue_8 : "<b>{0} 𝖯𝗅𝖺𝗒𝖾𝗋</b>\n\n <b>𝖲𝗍𝗋𝖾𝖺𝗆𝗂𝗇𝗀 :</b> {1}\n\n🔗 <b>𝖲𝗍𝗋𝖾𝖺𝗆 𝖳𝗒𝗉𝖾 :</b> {2}\n <b> 𝖱𝖾𝗊𝗎𝖾𝗌𝗍𝖾𝖽 𝖡𝗒 :</b> {3}\n{4}"
 
-stream_1 : "<blockquote><b>🗒️ Memulai Streaming \n\n🏷Judul : <a href={0}>{1}</a>\n⏳Durasi : {2} Menit\n👤Diminta Oleh : {3}</b></blockquote>"
+stream_1 : "<blockquote><b>🗒️ Memulai Streaming \n\n🏷Judul : <a href={0}>{1}</a>\n⏰Durasi : {2} Menit\n👤Diminta Oleh : {3}</b></blockquote>"
 stream_2 : "<blockquote><b>🗒️ Memulai Streaming \n\nStreaming Langsung : Streaming Langsung [URL]\n👤Diminta Oleh : {0}</b></blockquote>"
 
 
@@ -345,6 +345,7 @@ gban_9 : "» 𝖫𝗂𝖿𝗍𝖾𝖽 𝖦𝗅𝗈𝖻𝖺𝗅 𝖡𝖺𝗇 𝖥
 gban_10 : "» 𝖭𝗈 𝖮𝗇𝖾 𝖨 𝖦𝗅𝗈𝖻𝖺𝗅𝗅𝗒 𝖡𝖺𝗇𝗇𝖾𝖽 𝖥𝗋𝗈𝗆  𝖳𝗁𝖾 𝖡𝗈𝗍 ."
 gban_11 : "» 𝖥𝖾𝗍𝖼𝗁𝗂𝗇𝗀 𝖦𝖻𝖺𝗇𝗇𝖾𝖽 𝖴𝗌𝖾𝗋𝗌 𝖫𝗂𝗌𝗍 ..."
 gban_12 : "🙂 <b>𝖦𝗅𝗈𝖻𝖺𝗅𝗅𝗒 𝖡𝖺𝗇𝗇𝖾𝖽 𝖴𝗌𝖾𝗋𝗌 :</b>\n\n"
+
 
 
 
