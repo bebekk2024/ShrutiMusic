@@ -85,6 +85,7 @@ async def play_commnd(
             [[InlineKeyboardButton("🔗 Join Channel", url=join_link)]]
         )
         return await message.reply_photo(
+            photo="https://files.catbox.moe/hgtn8x.jpg",
             caption="❗️Anda harus join channel terlebih dahulu untuk menggunakan fitur play.",
             reply_markup=join_button
         )
