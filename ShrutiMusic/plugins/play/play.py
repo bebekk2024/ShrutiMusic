@@ -80,9 +80,9 @@ async def play_commnd(
     # PEMERIKSAAN WAJIB JOIN CHANNEL
     user_id = message.from_user.id
     if not await is_joined_channel(client, user_id, SUPPORT_CHANNEL):
-        join_link = f"https://t.me/Disney_storeDan"
+        SUPPORT_CHANNEL = f"https://t.me/Disney_storeDan"
         join_button = InlineKeyboardMarkup(
-            [[InlineKeyboardButton("🔗 Join Channel", url=join_link)]]
+            [[InlineKeyboardButton("🔗 Join Channel", url=SUPPORT_CHANNEL)]]
         )
         return await message.reply_photo(
             photo="https://files.catbox.moe/hgtn8x.jpg",
