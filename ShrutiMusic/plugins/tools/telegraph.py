@@ -19,88 +19,81 @@
 # Contact for permissions:
 # Email: badboy809075@gmail.com
 
-
 import os
 import requests
 from pyrogram import filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from ShrutiMusic import app
 
-
 def upload_file(file_path):
     url = "https://catbox.moe/user/api.php"
     data = {"reqtype": "fileupload", "json": "true"}
     files = {"fileToUpload": open(file_path, "rb")}
     response = requests.post(url, data=data, files=files)
-
     if response.status_code == 200:
         return True, response.text.strip()
     else:
         return False, f"Error: {response.status_code} - {response.text}"
 
-
 @app.on_message(filters.command(["tgm"]))
 async def get_link_group(client, message):
-    if not message.reply_to_message:
+    # Pastikan reply ke pesan yang berisi media yang didukung
+    if not message.reply_to_message or not (
+        message.reply_to_message.photo
+        or message.reply_to_message.video
+        or message.reply_to_message.animation
+        or message.reply_to_message.document
+    ):
         return await message.reply_text(
-            "Pʟᴇᴀsᴇ ʀᴇᴘʟʏ ᴛᴏ ᴀ ᴍᴇᴅɪᴀ"
+            "Pʟᴇᴀsᴇ ʀᴇᴘʟʏ ᴛᴏ ᴀ ᴘʜᴏᴛᴏ, ᴠɪᴅᴇᴏ, ɢɪғ, ᴏʀ ᴅᴏᴄᴜᴍᴇɴᴛ ᴜɴᴅᴇʀ 200MB."
         )
 
-    media = message.reply_to_message
-    file_size = 0
-    if media.photo:
-        file_size = media.photo.file_size
-    elif media.video:
-        file_size = media.video.file_size
-    elif media.document:
-        file_size = media.document.file_size
-
+    # Pilih media yang benar
+    media = (
+        message.reply_to_message.photo
+        or message.reply_to_message.video
+        or message.reply_to_message.animation
+        or message.reply_to_message.document
+    )
+    file_size = getattr(media, "file_size", 0)
     if file_size > 200 * 1024 * 1024:
-        return await message.reply_text("Pʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ ᴍᴇᴅɪᴀ ғɪʟᴇ ᴜɴᴅᴇʀ 200MB.")
+        return await message.reply_text("File terlalu besar! Maksimal 200MB.")
+
+    text = await message.reply("❍ ʜᴏʟᴅ ᴏɴ ʙᴀʙʏ....♡")
+    async def progress(current, total):
+        try:
+            await text.edit_text(f"📥 Dᴏᴡɴʟᴏᴀᴅɪɴɢ... {current * 100 / total:.1f}%")
+        except Exception:
+            pass
 
     try:
-        text = await message.reply("❍ ʜᴏʟᴅ ᴏɴ ʙᴀʙʏ....♡")
+        local_path = await media.download(progress=progress)
+        if not local_path or not os.path.isfile(local_path):
+            return await text.edit_text("❌ Gagal download file. Pastikan file valid dan coba lagi.")
 
-        async def progress(current, total):
-            try:
-                await text.edit_text(f"📥 Dᴏᴡɴʟᴏᴀᴅɪɴɢ... {current * 100 / total:.1f}%")
-            except Exception:
-                pass
+        await text.edit_text("📤 Uᴘʟᴏᴀᴅɪɴɢ...")
+        success, upload_url = upload_file(local_path)
 
+        if success:
+            await text.edit_text(
+                f"🌐 | <a href='{upload_url}'>👉 ʏᴏᴜʀ ʟɪɴᴋ ᴛᴀᴘ ʜᴇʀᴇ 👈</a>",
+                disable_web_page_preview=False,
+                reply_markup=InlineKeyboardMarkup(
+                    [[InlineKeyboardButton("🌍 ᴘʀᴇss ᴀɴᴅ ʜᴏʟᴅ ᴛᴏ ᴠɪᴇᴡ", url=upload_url)]]
+                ),
+            )
+        else:
+            await text.edit_text(
+                f"⚠️ Aɴ ᴇʀʀᴏʀ ᴏᴄᴄᴜʀʀᴇᴅ ᴡʜɪʟᴇ ᴜᴘʟᴏᴀᴅɪɴɢ ʏᴏᴜʀ ғɪʟᴇ\n{upload_url}"
+            )
+    except Exception as e:
+        await text.edit_text(f"❌ Fɪʟᴇ ᴜᴘʟᴏᴀᴅ ғᴀɪʟᴇᴅ\n\n<i>Rᴇᴀsᴏɴ: {e}</i>")
+    finally:
         try:
-            local_path = await media.download(progress=progress)
-            await text.edit_text("📤 Uᴘʟᴏᴀᴅɪɴɢ...")
-
-            success, upload_url = upload_file(local_path)
-
-            if success:
-                await text.edit_text(
-                    f"🌐 | <a href='{upload_url}'>👉 ʏᴏᴜʀ ʟɪɴᴋ ᴛᴀᴘ ʜᴇʀᴇ 👈</a>",
-                    disable_web_page_preview=False,
-                    reply_markup=InlineKeyboardMarkup(
-                        [[InlineKeyboardButton("🌍 ᴘʀᴇss ᴀɴᴅ ʜᴏʟᴅ ᴛᴏ ᴠɪᴇᴡ", url=upload_url)]]
-                    ),
-                )
-            else:
-                await text.edit_text(
-                    f"⚠️ Aɴ ᴇʀʀᴏʀ ᴏᴄᴄᴜʀʀᴇᴅ ᴡʜɪʟᴇ ᴜᴘʟᴏᴀᴅɪɴɢ ʏᴏᴜʀ ғɪʟᴇ\n{upload_url}"
-                )
-
-            try:
+            if local_path and os.path.isfile(local_path):
                 os.remove(local_path)
-            except Exception:
-                pass
-
-        except Exception as e:
-            await text.edit_text(f"❌ Fɪʟᴇ ᴜᴘʟᴏᴀᴅ ғᴀɪʟᴇᴅ\n\n<i>Rᴇᴀsᴏɴ: {e}</i>")
-            try:
-                os.remove(local_path)
-            except Exception:
-                pass
-            return
-    except Exception:
-        pass
-
+        except Exception:
+            pass
 
 __HELP__ = """
 **ᴛᴇʟᴇɢʀᴀᴘʜ ᴜᴘʟᴏᴀᴅ ʙᴏᴛ ᴄᴏᴍᴍᴀɴᴅs**
@@ -118,7 +111,6 @@ __HELP__ = """
 
 __MODULE__ = "ᴛᴇʟᴇɢʀᴀᴘʜ"
 
-
 # ©️ Copyright Reserved - @NoxxOP  Nand Yaduwanshi
 
 # ===========================================
@@ -126,6 +118,5 @@ __MODULE__ = "ᴛᴇʟᴇɢʀᴀᴘʜ"
 # 🔗 GitHub : https://github.com/NoxxOP/ShrutiMusic
 # 📢 Telegram Channel : https://t.me/ShrutiBots
 # ===========================================
-
 
 # ❤️ Love From ShrutiBots 
