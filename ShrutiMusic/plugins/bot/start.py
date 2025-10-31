@@ -19,7 +19,6 @@
 # Contact for permissions:
 # Email: badboy809075@gmail.com
 
-
 import time
 import random
 
@@ -47,7 +46,10 @@ from ShrutiMusic.utils.inline import help_pannel_page1, private_panel, start_pan
 from config import BANNED_USERS
 from strings import get_string
 
-# Random stickers list
+# Tambahan untuk fitur wajib join channel
+from config import CHANNEL_USERNAME
+from ShrutiMusic.utils.check_channel import is_joined_channel
+
 RANDOM_STICKERS = [
     "CAACAgUAAxkBAAEEnzFor872a_gYPHu-FxIwv-nxmZ5U8QACyBUAAt5hEFVBanMxRZCc7h4E",
     "CAACAgUAAxkBAAEEnzJor88q_xRO1ljlwh_I6fRF7lDR-AACnBsAAlckCFWNCpez-HzWHB4E",
@@ -55,10 +57,22 @@ RANDOM_STICKERS = [
     "CAACAgUAAxkBAAEEnzRor880z_spEYEnEfyFXN55tNwydQACIxUAAosKEVUB8iqZMVYroR4E"
 ]
 
-
 @app.on_message(filters.command(["start"]) & filters.private & ~BANNED_USERS)
 @LanguageStart
 async def start_pm(client, message: Message, _):
+    # WAJIB JOIN CHANNEL
+    user_id = message.from_user.id
+    if not await is_joined_channel(client, user_id, CHANNEL_USERNAME):
+        join_link = f"https://t.me/Disney_storeDan"
+        join_button = InlineKeyboardMarkup(
+            [[InlineKeyboardButton("🔗 Join Channel", url=join_link)]]
+        )
+        return await message.reply_text(
+            photo_url = "https://files.catbox.moe/hgtn8x.jpg"
+            "❗️Anda harus join channel terlebih dahulu untuk menggunakan bot ini.",
+            reply_markup=join_button
+        )
+
     # Send random sticker first
     random_sticker = random.choice(RANDOM_STICKERS)
     await message.reply_sticker(sticker=random_sticker)
@@ -71,7 +85,6 @@ async def start_pm(client, message: Message, _):
             return await message.reply_photo(
                 photo=config.START_IMG_URL,
                 caption=_["help_1"].format(config.SUPPORT_GROUP),
-                #protect_content=True,
                 reply_markup=keyboard,
             )
         if name[0:3] == "sud":
@@ -197,14 +210,11 @@ async def welcome(client, message: Message):
         except Exception as ex:
             print(ex)
 
-
 # ©️ Copyright Reserved - @NoxxOP  Nand Yaduwanshi
-
 # ===========================================
 # ©️ 2025 Nand Yaduwanshi (aka @NoxxOP)
 # 🔗 GitHub : https://github.com/NoxxOP/ShrutiMusic
 # 📢 Telegram Channel : https://t.me/ShrutiBots
 # ===========================================
-
 
 # ❤️ Love From ShrutiBots
