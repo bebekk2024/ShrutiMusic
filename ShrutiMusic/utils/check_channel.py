@@ -1,8 +1,8 @@
 from pyrogram.errors import UserNotParticipant, UserBannedInChannel
 
-async def is_joined_channel(client, user_id, channel_username):
+async def is_joined_channel(client, user_id, support_channel):
     try:
-        member = await client.get_chat_member(channel_username, user_id)
+        member = await client.get_chat_member(support_channel, user_id)
         if member.status in ("member", "administrator", "creator"):
             return True
         else:
