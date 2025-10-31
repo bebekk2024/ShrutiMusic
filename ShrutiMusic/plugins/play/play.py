@@ -46,7 +46,7 @@ from ShrutiMusic.utils.stream.stream import stream
 from config import BANNED_USERS, lyrical
 
 # Tambahan: import config join channel & helper
-from config import CHANNEL_USERNAME
+from config import SUPPORT_CHANNEL
 from ShrutiMusic.utils.check_channel import is_joined_channel
 
 @app.on_message(
@@ -79,7 +79,7 @@ async def play_commnd(
 ):
     # PEMERIKSAAN WAJIB JOIN CHANNEL
     user_id = message.from_user.id
-    if not await is_joined_channel(client, user_id, CHANNEL_USERNAME):
+    if not await is_joined_channel(client, user_id, SUPPORT_CHANNEL):
         join_link = f"https://t.me/Disney_storeDan"
         join_button = InlineKeyboardMarkup(
             [[InlineKeyboardButton("🔗 Join Channel", url=join_link)]]
