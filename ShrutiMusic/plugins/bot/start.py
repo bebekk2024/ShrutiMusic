@@ -47,7 +47,7 @@ from config import BANNED_USERS
 from strings import get_string
 
 # Tambahan untuk fitur wajib join channel
-from config import CHANNEL_USERNAME
+from config import SUPPORT_CHANNEL
 from ShrutiMusic.utils.check_channel import is_joined_channel
 
 RANDOM_STICKERS = [
@@ -62,7 +62,7 @@ RANDOM_STICKERS = [
 async def start_pm(client, message: Message, _):
     # WAJIB JOIN CHANNEL
     user_id = message.from_user.id
-    if not await is_joined_channel(client, user_id, CHANNEL_USERNAME):
+    if not await is_joined_channel(client, user_id, SUPPORT_CHANNEL):
         join_link = f"https://t.me/Disney_storeDan"
         join_button = InlineKeyboardMarkup(
             [[InlineKeyboardButton("🔗 Join Channel", url=join_link)]]
