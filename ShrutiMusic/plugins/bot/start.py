@@ -67,9 +67,9 @@ async def start_pm(client, message: Message, _):
         join_button = InlineKeyboardMarkup(
             [[InlineKeyboardButton("🔗 Join Channel", url=join_link)]]
         )
-        return await message.reply_text(
-            photo_url = "https://files.catbox.moe/hgtn8x.jpg"
-            "❗️Anda harus join channel terlebih dahulu untuk menggunakan bot ini.",
+        return await message.reply_photo(
+            photo="https://files.catbox.moe/hgtn8x.jpg",
+            caption="❗️Anda harus join channel terlebih dahulu untuk menggunakan bot ini.",
             reply_markup=join_button
         )
 
