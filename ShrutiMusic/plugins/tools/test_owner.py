@@ -1,29 +1,22 @@
 from pyrogram import filters
 from ShrutiMusic import app
 from pyrogram.types import Message
-import config
 
-# Import OWNER_ID dari config secara robust
 try:
-    from ShrutiMusic.config import OWNER_ID as _OWNER_ID
-except Exception:
+    from ShrutiMusic import config
+except ImportError:
     try:
-        from config import OWNER_ID as _OWNER_ID
-    except Exception:
-        _OWNER_ID = None
+        import config
+    except ImportError:
+        config = None
 
-try:
-    OWNER_ID = int(_OWNER_ID) if _OWNER_ID is not None else None
-except Exception:
-    OWNER_ID = None
-
+if config:
+    OWNER_ID = getattr(config, "OWNER_ID", 5779185981)
+else:
+    OWNER_ID = 5779185981
 
 @app.on_message(filters.command("testowner") & filters.private)
 async def test_owner_cmd(client, message: Message):
-    """
-    Perintah uji untuk memeriksa OWNER_ID tanpa membuat bot crash saat config tidak tersedia.
-    Jalankan perintah ini dari chat pribadi bot (DM).
-    """
     await message.reply_text(f"OWNER_ID dari config: {OWNER_ID}")
     if not OWNER_ID:
         await message.reply_text("⚠️ OWNER_ID tidak dikonfigurasi. Silakan periksa file config.py.")
