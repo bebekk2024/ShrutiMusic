@@ -3,7 +3,21 @@ import traceback
 from datetime import datetime
 
 from ShrutiMusic import app
-from ShrutiMusic.config import OWNER_ID
+
+# Robust import for config: try package import first, then top-level module.
+try:
+    from ShrutiMusic.config import OWNER_ID as _OWNER_ID
+except Exception:
+    try:
+        from config import OWNER_ID as _OWNER_ID
+    except Exception:
+        _OWNER_ID = None
+
+# ensure OWNER_ID is int when possible
+try:
+    OWNER_ID = int(_OWNER_ID) if _OWNER_ID is not None else None
+except Exception:
+    OWNER_ID = None
 
 
 def split_limits(text):
@@ -50,19 +64,22 @@ def capture_err(func):
 
             error_feedback = split_limits(error_text)
 
-            # Kirim notifikasi langsung ke OWNER_ID
+            # Try to notify OWNER_ID (if available). If OWNER_ID missing, reply to sender.
             send_failed = False
             send_exceptions = []
-            for chunk in error_feedback:
-                try:
-                    await app.send_message(OWNER_ID, chunk)
-                except Exception as e:
-                    send_failed = True
-                    send_exceptions.append((type(e).__name__, str(e)))
+            if OWNER_ID:
+                for chunk in error_feedback:
+                    try:
+                        await app.send_message(OWNER_ID, chunk)
+                    except Exception as e:
+                        send_failed = True
+                        send_exceptions.append((type(e).__name__, str(e)))
+            else:
+                send_failed = True
+                send_exceptions.append(("MissingOwnerID", "OWNER_ID not configured or importable"))
 
-            # Jika pengiriman ke OWNER gagal, balas ke pengirim agar ada notifikasi
+            # If sending to owner failed, try to reply to the message sender with summary
             if send_failed:
-                # Gabungkan error kecil jadi satu pesan singkat untuk pengirim
                 reasons = "; ".join([f"{n}: {m}" for n, m in send_exceptions])
                 try:
                     await message.reply_text(
@@ -71,9 +88,9 @@ def capture_err(func):
                         "Silakan hubungi owner secara langsung."
                     )
                 except Exception:
-                    # Jika bahkan reply ke pengirim gagal, print ke console sebagai fallback
+                    # Fallback: log to console
                     print("Gagal memberi feedback ke user dan owner. Errors:", send_exceptions)
 
-            # Jangan swallow exception; biarkan naik sehingga pipeline lain (jika ada) tahu
+            # Re-raise original exception so other handlers can react/log
             raise err
     return capture
