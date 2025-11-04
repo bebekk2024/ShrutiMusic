@@ -4,7 +4,7 @@ import asyncio
 from pyrogram import filters
 from pyrogram.types import Message
 from ShrutiMusic import app
-from ShrutiMusic.config import OWNER_ID
+import OWNER_ID
 from ShrutiMusic.misc import db
 from ShrutiMusic.utils.database import music_on, group_assistant, get_lang
 from strings import get_string
