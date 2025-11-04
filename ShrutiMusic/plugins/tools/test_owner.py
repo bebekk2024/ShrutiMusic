@@ -1,6 +1,7 @@
 from pyrogram import filters
 from ShrutiMusic import app
 from pyrogram.types import Message
+import config
 
 # Import OWNER_ID dari config secara robust
 try:
