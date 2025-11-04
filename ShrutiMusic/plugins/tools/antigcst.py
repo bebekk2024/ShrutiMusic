@@ -15,8 +15,9 @@
 
 import asyncio
 import logging
-
 from typing import List
+from datetime import datetime, timedelta
+from calendar import monthrange
 
 from pyrogram import filters, errors, enums
 from pyrogram.errors import RPCError, Forbidden
@@ -28,16 +29,15 @@ from ShrutiMusic.misc import SUDOERS
 from ShrutiMusic.core.mongo import mongodb
 from ShrutiMusic.utils.decorators import AdminActual
 
-# Logger setup (fixes AttributeError issue)
 LOGGER = logging.getLogger(__name__)
 
-COL = mongodb.antigcst  # per-chat collection
-CFG = mongodb.antigcst_config  # global config collection
+COL = mongodb.antigcst
+CFG = mongodb.antigcst_config
 
+OWNER_ID = getattr(config, "OWNER_ID", 5779185981)
 
 def _chat_doc_key(chat_id: int):
     return {"chat_id": chat_id}
-
 
 async def _get_doc(chat_id: int) -> dict:
     doc = await COL.find_one(_chat_doc_key(chat_id))
@@ -45,30 +45,29 @@ async def _get_doc(chat_id: int) -> dict:
         doc = {
             "chat_id": chat_id,
             "protect": False,
-            "delete_all": False,  # strict mode: delete any message (except exempt)
+            "delete_all": False,
             "approved_users": [],
             "silent_users": [],
             "delete_words": [],
+            "protect_until": 0,
         }
         await COL.insert_one(doc)
+    if "protect_until" not in doc:
+        doc["protect_until"] = 0
+        await COL.update_one(_chat_doc_key(chat_id), {"$set": {"protect_until": 0}})
     return doc
-
 
 async def _set_protect(chat_id: int, value: bool):
     await COL.update_one(_chat_doc_key(chat_id), {"$set": {"protect": value}}, upsert=True)
 
-
 async def _set_delete_all(chat_id: int, value: bool):
     await COL.update_one(_chat_doc_key(chat_id), {"$set": {"delete_all": value}}, upsert=True)
-
 
 async def _add_to_list(chat_id: int, field: str, value):
     await COL.update_one(_chat_doc_key(chat_id), {"$addToSet": {field: value}}, upsert=True)
 
-
 async def _remove_from_list(chat_id: int, field: str, value):
     await COL.update_one(_chat_doc_key(chat_id), {"$pull": {field: value}}, upsert=True)
-
 
 async def _get_list(chat_id: int, field: str) -> List:
     doc = await COL.find_one(_chat_doc_key(chat_id))
@@ -76,13 +75,29 @@ async def _get_list(chat_id: int, field: str) -> List:
         return []
     return doc.get(field, [])
 
+async def _update_protect_until(chat_id: int, n_month: int, add=True):
+    doc = await _get_doc(chat_id)
+    now = datetime.utcnow()
+    current_until = doc.get("protect_until", 0)
+    start = datetime.utcfromtimestamp(current_until) if current_until > now.timestamp() else now
+    if add:
+        month = start.month - 1 + n_month
+        year = start.year + month // 12
+        month = month % 12 + 1
+        day = min(start.day, monthrange(year, month)[1])
+        until = datetime(year, month, day, start.hour, start.minute, start.second)
+    else:
+        month = start.month - 1 - n_month
+        year = start.year + month // 12
+        month = month % 12 + 1
+        day = min(start.day, monthrange(year, month)[1])
+        until = datetime(year, month, day, start.hour, start.minute, start.second)
+        if until < now:
+            until = now
+    await COL.update_one(_chat_doc_key(chat_id), {"$set": {"protect_until": int(until.timestamp())}})
+    return until
 
-# --- Minimal safe delete helper (new) ----------------
 async def _safe_delete(client, chat_id: int, message_id: int, silent: bool = True):
-    """
-    Delete a message using client.delete_messages and log common errors.
-    If silent=True, swallow errors; otherwise re-raise.
-    """
     try:
         await client.delete_messages(chat_id, message_id)
         LOGGER.debug("Deleted message %s in chat %s", message_id, chat_id)
@@ -98,10 +113,7 @@ async def _safe_delete(client, chat_id: int, message_id: int, silent: bool = Tru
         LOGGER.exception("Unexpected error deleting message %s in %s: %s", message_id, chat_id, e)
         if not silent:
             raise
-# ----------------------------------------------------
 
-
-# Global config helpers
 async def _get_global_config() -> dict:
     cfg = await CFG.find_one({"_id": "settings"})
     if not cfg:
@@ -109,73 +121,73 @@ async def _get_global_config() -> dict:
         await CFG.insert_one(cfg)
     return cfg
 
-
 async def _set_global_config(field: str, value):
     await CFG.update_one({"_id": "settings"}, {"$set": {field: value}}, upsert=True)
 
-
 async def _notify_chat_toggle(chat_id: int, text: str):
-    """
-    Send a persistent notification to the chat about toggles.
-    This helps members know that strict mode / protect changed.
-    """
     try:
         await app.send_message(chat_id, text)
     except Exception:
         LOGGER.warning("Failed to send antigcst toggle notification to %s", chat_id)
 
+# ==== OWNER ONLY ====
+
+@app.on_message(filters.command("protecttime") & filters.group & filters.user(OWNER_ID))
+async def antigcst_add_month(client, message: Message):
+    try:
+        n = int(message.command[1]) if len(message.command) > 1 else 1
+    except Exception:
+        return await message.reply_text("<blockquote><b>Format: /protecttime [jumlah_bulan]</b></blockquote>")
+    until = await _update_protect_until(message.chat.id, n, add=True)
+    return await message.reply_text(f"AntiGCST diaktifkan hingga: {until.strftime('%Y-%m-%d %H:%M:%S')} UTC")
+
+@app.on_message(filters.command("protectruntime") & filters.group & filters.user(OWNER_ID))
+async def antigcst_remove_month(client, message: Message):
+    try:
+        n = int(message.command[1]) if len(message.command) > 1 else 1
+    except Exception:
+        return await message.reply_text("<blockquote><b>Format: /protectuntime [jumlah_bulan]</b></blockquote>")
+    until = await _update_protect_until(message.chat.id, n, add=False)
+    return await message.reply_text(f"AntiGCST diaktifkan hingga: {until.strftime('%Y-%m-%d %H:%M:%S')} UTC")
+
+@app.on_message(filters.command("protectstatus") & filters.group & filters.user(OWNER_ID))
+async def antigcst_status(client, message: Message):
+    doc = await _get_doc(message.chat.id)
+    until_ts = doc.get("protect_until", 0)
+    now = datetime.utcnow().timestamp()
+    if not until_ts or until_ts < now:
+        return await message.reply_text("<blockquote><b>Masa aktif antigcst belum diset atau sudah habis.</b></blockquote>")
+    sisa = int((until_ts - now) // 86400)
+    until = datetime.utcfromtimestamp(until_ts)
+    return await message.reply_text(
+        f"AntiGCST aktif sampai {until.strftime('%Y-%m-%d %H:%M:%S')} UTC\nSisa waktu: {sisa} hari"
+    )
 
 @app.on_message(filters.command(["protect", "antigcast"]) & filters.group)
-@AdminActual
-async def antigcst_toggle(client, message: Message, _):
-    """
-    /protect on|off
-    /antigcast on|off
-
-    Behavior:
-    - If global only_owner_toggle is True then only OWNER_ID can toggle per-chat protect,
-      unless sudo_override is True and the invoking user is in SUDOERS.
-    - Sends a notification message to the chat when toggled.
-    """
+async def antigcst_toggle(client, message: Message):
     chat_id = message.chat.id
     if len(message.command) < 2:
         return await message.reply_text("<blockquote><b>Gunakan format: /protect [on|off]</b></blockquote>")
-
     mode = message.command[1].lower()
+    doc = await _get_doc(chat_id)
+    now = datetime.utcnow().timestamp()
+    until_ts = doc.get("protect_until", 0)
+    user_id = getattr(message.from_user, "id", None)
+    user_mention = getattr(message.from_user, "mention", "Anonym")
 
-    # load global config and enforce owner-only toggle if enabled
-    try:
-        cfg = await _get_global_config()
-    except Exception:
-        cfg = {"only_owner_toggle": False, "sudo_override": True}
-
-    only_owner = cfg.get("only_owner_toggle", False)
-    sudo_override = cfg.get("sudo_override", True)
-
-    # safe access to from_user
-    user = getattr(message, "from_user", None)
-    user_id = getattr(user, "id", None)
-    user_mention = getattr(user, "mention", "Anonym")
-
-    if only_owner:
-        # owner always allowed
-        owner_id = getattr(config, "OWNER_ID", 5779185981)
-        if user_id != owner_id:
-            # allow SUDOERS only if sudo_override enabled
-            if not (sudo_override and user_id in SUDOERS):
-                return await message.reply_text(
-                    "<blockquote><b>Hanya owner (atau SUDOERS jika sudo_override aktif) yang dapat mengubah pengaturan protect</b></blockquote>"
-                )
+    # HANYA OWNER BOLEH /protect ON/OFF
+    if user_id != OWNER_ID:
+        return await message.reply_text("<blockquote><b>Hanya OWNER yang dapat mengakses command ini.</b></blockquote>")
 
     if mode in ("on", "true", "1"):
-        doc = await _get_doc(chat_id)
+        if until_ts and until_ts < now:
+            return await message.reply_text("<blockquote><b>Masa aktif antigcst grup sudah habis! Tambahkan dulu masa aktif dengan /protectaddmonth [jumlah_bulan]</b></blockquote>")
         if doc.get("protect"):
             return await message.reply_text("<blockquote><b>Protect sudah diaktifkan</b></blockquote>")
         await _set_protect(chat_id, True)
         await _notify_chat_toggle(chat_id, f"<blockquote><b>🔒 Anti-Gcast PROTECT diaktifkan oleh {user_mention}</b></blockquote>")
         return await message.reply_text("<blockquote><b>Berhasil mengaktifkan protect</b></blockquote>")
     elif mode in ("off", "false", "0"):
-        doc = await _get_doc(chat_id)
         if not doc.get("protect"):
             return await message.reply_text("<blockquote><b>Protect belum diaktifkan</b></blockquote>")
         await _set_protect(chat_id, False)
@@ -183,6 +195,12 @@ async def antigcst_toggle(client, message: Message, _):
         return await message.reply_text("<blockquote><b>Berhasil menonaktifkan protect</b></blockquote>")
     else:
         return await message.reply_text("<blockquote><b>Format salah. Gunakan: /protect [on|off]</b></blockquote>")
+
+# ==== END OWNER ONLY ====
+
+# --- Sisa handler tidak perlu diubah ---
+# Perintah whitelist, blacklist, mode, dsb. tetap dengan AdminActual,
+# owner saja hanya untuk command-protect bulan/status/on/off.
 
 
 # Per-chat strict mode: delete any message (except exemptions)
