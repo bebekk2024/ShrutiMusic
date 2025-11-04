@@ -1,5 +1,5 @@
 # plugins/tools/bugreport.py
-# Handler perintah /bug — kirim konfirmasi ke pengirim dan laporkan ke OWNER_ID (robust import)
+# Robust import of OWNER_ID to avoid ModuleNotFoundError in different deployment layouts.
 
 from pyrogram import filters
 from ShrutiMusic import app
