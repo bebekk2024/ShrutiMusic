@@ -9,16 +9,13 @@ from ShrutiMusic.misc import db
 from ShrutiMusic.utils.database import music_on, group_assistant, get_lang
 from strings import get_string
 
-# Intervals (seconds)
-POLL_INTERVAL = 4          # how often to poll participants for each monitored chat
-SCAN_INTERVAL = 6          # how often to scan for chats where music_on(chat) is True
+OWNER_ID = getattr(config, "OWNER_ID", 5779185981)
 
-# Map chat_id -> asyncio.Task (participant monitor)
+POLL_INTERVAL = 4
+SCAN_INTERVAL = 6
+
 _monitors: Dict[int, asyncio.Task] = {}
-
-# Background scanner task
 _scanner_task: asyncio.Task | None = None
-
 
 async def _get_participant_ids(assistant, chat_id) -> Set[int]:
     try:
@@ -27,13 +24,7 @@ async def _get_participant_ids(assistant, chat_id) -> Set[int]:
     except Exception:
         return set()
 
-
 async def _monitor_chat(chat_id: int):
-    """
-    Poll participants while music_on(chat_id) == True.
-    Sends welcome when someone joins and goodbye when someone leaves.
-    Special greetings for OWNER_ID.
-    """
     try:
         assistant = await group_assistant(None, chat_id)
     except Exception:
@@ -109,13 +100,11 @@ async def _monitor_chat(chat_id: int):
 
     _monitors.pop(chat_id, None)
 
-
 async def _ensure_monitor(chat_id: int):
     if chat_id in _monitors:
         return
     task = asyncio.create_task(_monitor_chat(chat_id))
     _monitors[chat_id] = task
-
 
 async def _stop_monitor(chat_id: int):
     task = _monitors.pop(chat_id, None)
@@ -126,12 +115,7 @@ async def _stop_monitor(chat_id: int):
         except Exception:
             pass
 
-
 async def _scan_loop():
-    """
-    Periodically scan for chats that have music_on(chat) == True and ensure monitors run.
-    Uses ShrutiMusic.misc.db keys as source of known chats if no helper exists.
-    """
     try:
         while True:
             # Derive candidate active chats from db keys (fallback)
@@ -160,8 +144,7 @@ async def _scan_loop():
     except asyncio.CancelledError:
         return
 
-
-# Start scanner when bot event loop is running
+# OTOMATIS START: Scanner jalan di background saat event loop bot aktif
 try:
     loop = asyncio.get_event_loop()
     if loop.is_running():
