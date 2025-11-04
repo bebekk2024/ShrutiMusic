@@ -1,11 +1,8 @@
-# plugins/tools/test_owner.py
-# Test command to verify OWNER_ID is reachable; robust config import to avoid startup crash.
-
 from pyrogram import filters
 from ShrutiMusic import app
 from pyrogram.types import Message
 
-# Robust import for config: try package import first, then top-level module.
+# Import OWNER_ID dari config secara robust
 try:
     from ShrutiMusic.config import OWNER_ID as _OWNER_ID
 except Exception:
@@ -14,7 +11,6 @@ except Exception:
     except Exception:
         _OWNER_ID = None
 
-# ensure OWNER_ID is int when possible
 try:
     OWNER_ID = int(_OWNER_ID) if _OWNER_ID is not None else None
 except Exception:
