@@ -157,10 +157,9 @@ async def _scan_loop():
 
 # Auto start when imported (event loop detection)
 def _autostart():
-    global _scanner_task
+    global _scanner_task  # <-- Tambahkan ini di baris atas fungsi sebelum segala assignment!
     try:
         loop = asyncio.get_event_loop()
-        # Tunggu sampai bot sudah aktif
         def run_when_app_started():
             if app.is_connected:
                 if _scanner_task is None:
@@ -171,6 +170,6 @@ def _autostart():
         run_when_app_started()
     except Exception as e:
         logging.error(f"Cannot start scan loop: {e}")
-        _scanner_task = None
+        _scanner_task = None  # assignment ini juga ke global
 
 _autostart()  # Import = langsung running di background!
