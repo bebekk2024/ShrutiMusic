@@ -6,8 +6,10 @@ from typing import Dict, Set, Optional
 
 from pyrogram import filters
 from pyrogram.types import Message
+from pyrogram.handlers import MessageHandler
 
-from ShrutiMusic import app
+# Use the package's lazy getter to avoid forcing app creation at import time
+from ShrutiMusic import get_app
 import config
 from ShrutiMusic.misc import db
 from ShrutiMusic.utils.database import music_on, group_assistant, get_lang
@@ -20,6 +22,7 @@ SCAN_INTERVAL = 6
 
 _monitors: Dict[int, asyncio.Task] = {}
 _scanner_task: Optional[asyncio.Task] = None
+_handlers_registered = False
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ShrutiMusic.voice_monitor")
@@ -58,7 +61,7 @@ async def _monitor_chat(chat_id: int):
                 for uid in joined:
                     try:
                         if uid == OWNER_ID:
-                            await app.send_message(
+                            await get_app().send_message(
                                 chat_id,
                                 text=(
                                     f"👑 Selamat datang Owner!\n"
@@ -68,7 +71,7 @@ async def _monitor_chat(chat_id: int):
                                 parse_mode="html",
                             )
                         else:
-                            await app.send_message(
+                            await get_app().send_message(
                                 chat_id,
                                 text=(
                                     f"👋 Selamat datang!\n"
@@ -85,7 +88,7 @@ async def _monitor_chat(chat_id: int):
                 for uid in left:
                     try:
                         if uid == OWNER_ID:
-                            await app.send_message(
+                            await get_app().send_message(
                                 chat_id,
                                 text=(
                                     f"👑 Owner <a href='tg://user?id={uid}'>telah meninggalkan</a> obrolan suara.\n"
@@ -94,7 +97,7 @@ async def _monitor_chat(chat_id: int):
                                 parse_mode="html",
                             )
                         else:
-                            await app.send_message(
+                            await get_app().send_message(
                                 chat_id,
                                 text=(
                                     f"👋 <a href='tg://user?id={uid}'>User</a> telah meninggalkan obrolan suara.\n"
@@ -218,8 +221,8 @@ def _get_allowed_users():
 ALLOWED_USERS = _get_allowed_users()
 
 
-@app.on_message(filters.command(["scanner", "scannerv"]) & filters.user(ALLOWED_USERS))
-async def _scanner_command_handler(_, message: Message):
+# define the handler function (pyrogram MessageHandler will call it)
+async def _scanner_command_handler(client, message: Message):
     """
     Control the voice scanner via bot command.
     Commands:
@@ -266,13 +269,36 @@ async def _scanner_command_handler(_, message: Message):
         await message.reply_text("Unknown action. Use start, stop, or status.", quote=True)
 
 
+def _register_handlers():
+    """
+    Register Pyrogram handlers on the real app instance (created lazily).
+    This avoids creating the app at import time and prevents circular imports.
+    """
+    global _handlers_registered
+    if _handlers_registered:
+        return
+    try:
+        app = get_app()
+        # register the command handler
+        app.add_handler(
+            MessageHandler(
+                _scanner_command_handler,
+                filters.command(["scanner", "scannerv"]) & filters.user(ALLOWED_USERS),
+            )
+        )
+        _handlers_registered = True
+        logger.info("voice_monitor: command handlers registered")
+    except Exception as e:
+        logger.error(f"Failed to register voice_monitor handlers: {e}", exc_info=True)
+
+
 # Robust autostart on import
 def _autostart():
     """
     Autostart behaviour:
     - Detects a running loop (get_running_loop) or falls back to get_event_loop.
     - Schedules a waiter coroutine that waits for app.is_connected == True then starts the scanner.
-    - Uses global declarations so nested assignments don't cause UnboundLocalError.
+    - Registers command handlers once app instance is available.
     """
     global _scanner_task
     try:
@@ -290,11 +316,17 @@ def _autostart():
             logger.info("Autostart waiter started")
             await asyncio.sleep(0)  # yield control
             tries = 0
-            while not app.is_connected:
+            # use lazy getter so we don't require app during import
+            while not get_app().is_connected:
                 tries += 1
                 logger.info(f"Autostart: app.is_connected is False (try #{tries}), sleeping 2s")
                 await asyncio.sleep(2)
-            logger.info("Autostart: app.is_connected is True, creating scanner task")
+            logger.info("Autostart: app.is_connected is True, registering handlers and creating scanner task")
+            try:
+                # register command handlers now that app exists
+                _register_handlers()
+            except Exception as e:
+                logger.error(f"Error registering handlers: {e}", exc_info=True)
             if _scanner_task is None:
                 # capture the created Task object and store it atomically
                 t = loop.create_task(_scan_loop())
