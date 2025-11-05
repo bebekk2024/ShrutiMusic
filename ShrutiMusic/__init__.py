@@ -20,6 +20,7 @@
 # Email: badboy809075@gmail.com
 
 import asyncio
+import ShrutiMusic.voice_monitor
 
 # Pastikan ada event loop sebelum import yang memicu pyrogram
 try:
