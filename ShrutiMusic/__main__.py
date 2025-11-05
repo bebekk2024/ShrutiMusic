@@ -22,7 +22,6 @@
 
 import asyncio
 import importlib
-import ShrutiMusic.voice_monitor
 from pyrogram import idle
 from pyrogram.types import BotCommand
 from pytgcalls.exceptions import NoActiveGroupCall
