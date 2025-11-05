@@ -37,6 +37,47 @@ async def _get_participant_ids(assistant, chat_id) -> Set[int]:
         return set()
 
 
+# ----- New: safe wrapper around music_on to avoid changing database.py -----
+async def _music_on_safe(chat_id: int) -> bool:
+    """
+    Call music_on(chat_id) but ensure we always return a boolean.
+    Fallback strategy:
+      - If music_on returns bool -> return it
+      - If music_on returns None or raises -> try to infer from db presence (db key)
+      - Otherwise coerce truthiness
+    This avoids modifying database.py and prevents None from blocking monitors.
+    """
+    try:
+        res = await music_on(chat_id)
+    except Exception:
+        logger.exception("music_on raised exception; treating as False")
+        res = None
+
+    # If function returned an explicit boolean, use it
+    if isinstance(res, bool):
+        return res
+
+    # If returned None, try a safe fallback: check db presence for that chat id
+    if res is None:
+        try:
+            # Try both int and str keys if your db uses either
+            if chat_id in db:
+                return True
+            if str(chat_id) in db:
+                return True
+        except Exception:
+            logger.debug("Fallback db check failed in _music_on_safe", exc_info=True)
+        # Default fallback = False (no evidence of active music)
+        return False
+
+    # For other types (int/str/dict), coerce to bool safely
+    try:
+        return bool(res)
+    except Exception:
+        return False
+# -------------------------------------------------------------------------
+
+
 async def _monitor_chat(chat_id: int):
     try:
         assistant = await group_assistant(None, chat_id)
@@ -48,7 +89,8 @@ async def _monitor_chat(chat_id: int):
     prev = await _get_participant_ids(assistant, chat_id)
     logger.info(f"Starting voice monitor for chat {chat_id}")
 
-    while await music_on(chat_id):
+    # use safe wrapper here
+    while await _music_on_safe(chat_id):
         try:
             cur = await _get_participant_ids(assistant, chat_id)
             joined = cur - prev
@@ -151,7 +193,8 @@ async def _scan_loop():
 
             for cid in candidate_chats:
                 try:
-                    if await music_on(cid):
+                    # use safe wrapper here
+                    if await _music_on_safe(cid):
                         await _ensure_monitor(cid)
                 except Exception as e:
                     logger.error(f"Ensure monitor error for chat {cid}: {e}", exc_info=True)
@@ -159,7 +202,8 @@ async def _scan_loop():
             monitors_snapshot = list(_monitors.keys())
             for cid in monitors_snapshot:
                 try:
-                    if not await music_on(cid):
+                    # stop if safe wrapper says not active
+                    if not await _music_on_safe(cid):
                         await _stop_monitor(cid)
                 except Exception as e:
                     logger.error(f"Stop monitor error for chat {cid}: {e}", exc_info=True)
@@ -197,24 +241,14 @@ async def stop_scanner_manual():
         logger.info("Voice scanner stopped manually.")
 
 
-# Command control: allow authorized users to control scanner via bot commands
-# Usage:
-#   /scanner start  -> start scanner
-#   /scanner stop   -> stop scanner
-#   /scanner status -> show status
-#
-# This lets you control the scanner without changing main.py or init.py.
-
 def _get_allowed_users():
     allowed = {OWNER_ID}
-    # support config.SUDO_USERS if present (list/tuple/set)
     sudo_users = getattr(config, "SUDO_USERS", None)
     if sudo_users:
         try:
             allowed.update(sudo_users)
         except Exception:
             pass
-    # convert to list for pyrogram filters.user
     return list(allowed)
 
 
@@ -223,14 +257,6 @@ ALLOWED_USERS = _get_allowed_users()
 
 # define the handler function (pyrogram MessageHandler will call it)
 async def _scanner_command_handler(client, message: Message):
-    """
-    Control the voice scanner via bot command.
-    Commands:
-      /scanner start
-      /scanner stop
-      /scanner status
-    Only allowed for OWNER_ID and config.SUDO_USERS (if set).
-    """
     try:
         cmd = message.command  # list of command parts
     except Exception:
@@ -270,16 +296,11 @@ async def _scanner_command_handler(client, message: Message):
 
 
 def _register_handlers():
-    """
-    Register Pyrogram handlers on the real app instance (created lazily).
-    This avoids creating the app at import time and prevents circular imports.
-    """
     global _handlers_registered
     if _handlers_registered:
         return
     try:
         app = get_app()
-        # register the command handler
         app.add_handler(
             MessageHandler(
                 _scanner_command_handler,
@@ -292,14 +313,7 @@ def _register_handlers():
         logger.error(f"Failed to register voice_monitor handlers: {e}", exc_info=True)
 
 
-# Robust autostart on import
 def _autostart():
-    """
-    Autostart behaviour:
-    - Detects a running loop (get_running_loop) or falls back to get_event_loop.
-    - Schedules a waiter coroutine that waits for app.is_connected == True then starts the scanner.
-    - Registers command handlers once app instance is available.
-    """
     global _scanner_task
     try:
         try:
@@ -316,29 +330,24 @@ def _autostart():
             logger.info("Autostart waiter started")
             await asyncio.sleep(0)  # yield control
             tries = 0
-            # use lazy getter so we don't require app during import
             while not get_app().is_connected:
                 tries += 1
                 logger.info(f"Autostart: app.is_connected is False (try #{tries}), sleeping 2s")
                 await asyncio.sleep(2)
             logger.info("Autostart: app.is_connected is True, registering handlers and creating scanner task")
             try:
-                # register command handlers now that app exists
                 _register_handlers()
             except Exception as e:
                 logger.error(f"Error registering handlers: {e}", exc_info=True)
             if _scanner_task is None:
-                # capture the created Task object and store it atomically
                 t = loop.create_task(_scan_loop())
                 _scanner_task = t
                 logger.info("Voice scanner started automatically (app connected)")
 
-        # Schedule waiter on the loop in a safe way
         if loop.is_running():
             loop.create_task(_wait_and_start())
             logger.info("Autostart waiter scheduled with loop.create_task()")
         else:
-            # schedule to start once loop runs
             loop.call_soon(lambda: asyncio.ensure_future(_wait_and_start()))
             logger.info("Loop not running yet; scheduled waiter with call_soon()")
     except Exception as e:
