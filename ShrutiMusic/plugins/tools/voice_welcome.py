@@ -37,45 +37,31 @@ async def _get_participant_ids(assistant, chat_id) -> Set[int]:
         return set()
 
 
-# ----- New: safe wrapper around music_on to avoid changing database.py -----
+# Safe wrapper so we do not rely on database.py returning bool
 async def _music_on_safe(chat_id: int) -> bool:
-    """
-    Call music_on(chat_id) but ensure we always return a boolean.
-    Fallback strategy:
-      - If music_on returns bool -> return it
-      - If music_on returns None or raises -> try to infer from db presence (db key)
-      - Otherwise coerce truthiness
-    This avoids modifying database.py and prevents None from blocking monitors.
-    """
     try:
         res = await music_on(chat_id)
     except Exception:
         logger.exception("music_on raised exception; treating as False")
         res = None
 
-    # If function returned an explicit boolean, use it
     if isinstance(res, bool):
         return res
 
-    # If returned None, try a safe fallback: check db presence for that chat id
     if res is None:
         try:
-            # Try both int and str keys if your db uses either
             if chat_id in db:
                 return True
             if str(chat_id) in db:
                 return True
         except Exception:
             logger.debug("Fallback db check failed in _music_on_safe", exc_info=True)
-        # Default fallback = False (no evidence of active music)
         return False
 
-    # For other types (int/str/dict), coerce to bool safely
     try:
         return bool(res)
     except Exception:
         return False
-# -------------------------------------------------------------------------
 
 
 async def _monitor_chat(chat_id: int):
@@ -89,7 +75,6 @@ async def _monitor_chat(chat_id: int):
     prev = await _get_participant_ids(assistant, chat_id)
     logger.info(f"Starting voice monitor for chat {chat_id}")
 
-    # use safe wrapper here
     while await _music_on_safe(chat_id):
         try:
             cur = await _get_participant_ids(assistant, chat_id)
@@ -193,7 +178,6 @@ async def _scan_loop():
 
             for cid in candidate_chats:
                 try:
-                    # use safe wrapper here
                     if await _music_on_safe(cid):
                         await _ensure_monitor(cid)
                 except Exception as e:
@@ -202,7 +186,6 @@ async def _scan_loop():
             monitors_snapshot = list(_monitors.keys())
             for cid in monitors_snapshot:
                 try:
-                    # stop if safe wrapper says not active
                     if not await _music_on_safe(cid):
                         await _stop_monitor(cid)
                 except Exception as e:
@@ -214,10 +197,8 @@ async def _scan_loop():
         return
     except Exception:
         logger.exception("Unexpected error in scan loop, restarting waiter")
-        # let the autostarter restart it on next check
 
 
-# Manual control helpers (still available)
 async def start_scanner_manual():
     """Start scanner manually from your main code (awaitable)."""
     global _scanner_task
@@ -255,10 +236,9 @@ def _get_allowed_users():
 ALLOWED_USERS = _get_allowed_users()
 
 
-# define the handler function (pyrogram MessageHandler will call it)
 async def _scanner_command_handler(client, message: Message):
     try:
-        cmd = message.command  # list of command parts
+        cmd = message.command
     except Exception:
         cmd = []
 
@@ -328,7 +308,7 @@ def _autostart():
         async def _wait_and_start():
             global _scanner_task
             logger.info("Autostart waiter started")
-            await asyncio.sleep(0)  # yield control
+            await asyncio.sleep(0)
             tries = 0
             while not get_app().is_connected:
                 tries += 1
@@ -355,5 +335,4 @@ def _autostart():
         _scanner_task = None
 
 
-# Try autostart immediately on import
 _autostart()
