@@ -1,8 +1,12 @@
 # Robust automatic voice scanner / monitor for ShrutiMusic
-# Place this file as ShrutiMusic/voice_monitor.py (or adjust import path in main)
+# Replace the existing ShrutiMusic/voice_monitor.py with this file.
+# This version is adapted to your database.py implementation (group_assistant defined
+# with a `self` parameter at module scope). It tries multiple call patterns and bound
+# method resolution so it works without modifying database.py.
 import asyncio
+import inspect
 import logging
-from typing import Dict, Set, Optional
+from typing import Dict, Set, Optional, Any
 
 from pyrogram import filters
 from pyrogram.types import Message
@@ -12,7 +16,7 @@ from pyrogram.handlers import MessageHandler
 from ShrutiMusic import get_app
 import config
 from ShrutiMusic.misc import db
-from ShrutiMusic.utils.database import music_on, group_assistant, get_lang
+from ShrutiMusic.utils.database import music_on, get_lang
 from strings import get_string
 
 OWNER_ID = getattr(config, "OWNER_ID", 5779185981)
@@ -37,59 +41,135 @@ async def _get_participant_ids(assistant, chat_id) -> Set[int]:
         return set()
 
 
-# ----- New: safe wrapper around music_on to avoid changing database.py -----
+# Safe wrapper so we do not rely on database.py returning bool
 async def _music_on_safe(chat_id: int) -> bool:
-    """
-    Call music_on(chat_id) but ensure we always return a boolean.
-    Fallback strategy:
-      - If music_on returns bool -> return it
-      - If music_on returns None or raises -> try to infer from db presence (db key)
-      - Otherwise coerce truthiness
-    This avoids modifying database.py and prevents None from blocking monitors.
-    """
     try:
         res = await music_on(chat_id)
     except Exception:
         logger.exception("music_on raised exception; treating as False")
         res = None
 
-    # If function returned an explicit boolean, use it
     if isinstance(res, bool):
         return res
 
-    # If returned None, try a safe fallback: check db presence for that chat id
     if res is None:
         try:
-            # Try both int and str keys if your db uses either
             if chat_id in db:
                 return True
             if str(chat_id) in db:
                 return True
         except Exception:
             logger.debug("Fallback db check failed in _music_on_safe", exc_info=True)
-        # Default fallback = False (no evidence of active music)
         return False
 
-    # For other types (int/str/dict), coerce to bool safely
     try:
         return bool(res)
     except Exception:
         return False
-# -------------------------------------------------------------------------
+
+
+# Try to resolve & call group_assistant in multiple ways to match your database.py
+async def _resolve_group_assistant(chat_id: int) -> Optional[Any]:
+    """
+    Resolve and call group_assistant implementation present in ShrutiMusic.utils.database.
+    Supports:
+      - group_assistant(chat_id)
+      - group_assistant(None, chat_id)
+      - a bound method group_assistant on some object exported by the module
+      - manager.get_userbot().group_assistant if available
+    Returns assistant instance or None.
+    """
+    try:
+        import ShrutiMusic.utils.database as dbmod
+    except Exception as e:
+        logger.debug(f"Could not import ShrutiMusic.utils.database: {e}", exc_info=True)
+        return None
+
+    # 1) If module exports a plain callable group_assistant, try to call it with probable signatures.
+    ga = getattr(dbmod, "group_assistant", None)
+    if ga:
+        try:
+            # inspect signature if possible
+            try:
+                sig = inspect.signature(ga)
+                params = len(sig.parameters)
+            except Exception:
+                params = None
+
+            # If it seems to accept only chat_id, call directly
+            if params == 1 or params is None:
+                try:
+                    return await ga(chat_id)
+                except Exception as e:
+                    logger.debug(f"group_assistant(chat_id) failed: {e}", exc_info=True)
+
+            # If it accepts (self, chat_id) or more, try ga(None, chat_id)
+            if params and params >= 2:
+                try:
+                    return await ga(None, chat_id)
+                except Exception as e:
+                    logger.debug(f"group_assistant(None, chat_id) failed: {e}", exc_info=True)
+        except Exception:
+            logger.debug("Error when attempting to call module-level group_assistant", exc_info=True)
+
+    # 2) Search for objects in module that expose a bound 'group_assistant' method
+    try:
+        for name, obj in vars(dbmod).items():
+            if name.startswith("_"):
+                continue
+            try:
+                candidate = getattr(obj, "group_assistant", None)
+                if candidate and callable(candidate):
+                    try:
+                        # If bound coroutine
+                        if inspect.iscoroutinefunction(candidate):
+                            return await candidate(chat_id)
+                        # If candidate returns a coroutine when called
+                        res = candidate(chat_id)
+                        if inspect.isawaitable(res):
+                            return await res
+                    except Exception as e:
+                        logger.debug(f"Calling bound group_assistant on {name} failed: {e}", exc_info=True)
+            except Exception:
+                continue
+    except Exception:
+        logger.debug("Error scanning db module for bound group_assistant", exc_info=True)
+
+    # 3) Try package-level manager (get_userbot) that might expose the assistant attributes
+    try:
+        from ShrutiMusic import get_userbot
+        try:
+            manager = get_userbot()
+        except Exception:
+            manager = None
+        if manager:
+            candidate = getattr(manager, "group_assistant", None)
+            if callable(candidate):
+                try:
+                    if inspect.iscoroutinefunction(candidate):
+                        return await candidate(chat_id)
+                    res = candidate(chat_id)
+                    if inspect.isawaitable(res):
+                        return await res
+                except Exception as e:
+                    logger.debug(f"get_userbot().group_assistant call failed: {e}", exc_info=True)
+    except Exception:
+        pass
+
+    logger.error(f"Could not resolve a usable group_assistant for chat {chat_id}")
+    return None
 
 
 async def _monitor_chat(chat_id: int):
-    try:
-        assistant = await group_assistant(None, chat_id)
-        logger.info(f"Assistant fetched for chat {chat_id}")
-    except Exception as e:
-        logger.error(f"Assistant resolving failed for {chat_id}: {e}", exc_info=True)
+    assistant = await _resolve_group_assistant(chat_id)
+    if not assistant:
+        logger.error(f"Assistant resolving failed for {chat_id}: no assistant available")
         return
+    logger.info(f"Assistant fetched for chat {chat_id}: {type(assistant)}")
 
     prev = await _get_participant_ids(assistant, chat_id)
     logger.info(f"Starting voice monitor for chat {chat_id}")
 
-    # use safe wrapper here
     while await _music_on_safe(chat_id):
         try:
             cur = await _get_participant_ids(assistant, chat_id)
@@ -193,7 +273,6 @@ async def _scan_loop():
 
             for cid in candidate_chats:
                 try:
-                    # use safe wrapper here
                     if await _music_on_safe(cid):
                         await _ensure_monitor(cid)
                 except Exception as e:
@@ -202,7 +281,6 @@ async def _scan_loop():
             monitors_snapshot = list(_monitors.keys())
             for cid in monitors_snapshot:
                 try:
-                    # stop if safe wrapper says not active
                     if not await _music_on_safe(cid):
                         await _stop_monitor(cid)
                 except Exception as e:
@@ -258,7 +336,7 @@ ALLOWED_USERS = _get_allowed_users()
 # define the handler function (pyrogram MessageHandler will call it)
 async def _scanner_command_handler(client, message: Message):
     try:
-        cmd = message.command  # list of command parts
+        cmd = message.command
     except Exception:
         cmd = []
 
@@ -328,7 +406,7 @@ def _autostart():
         async def _wait_and_start():
             global _scanner_task
             logger.info("Autostart waiter started")
-            await asyncio.sleep(0)  # yield control
+            await asyncio.sleep(0)
             tries = 0
             while not get_app().is_connected:
                 tries += 1
