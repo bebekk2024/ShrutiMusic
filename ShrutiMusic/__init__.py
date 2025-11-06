@@ -35,7 +35,6 @@ from .misc import mongodb
 from .misc import dbb, heroku
 from .misc import SUDOERS
 from .logging import LOGGER
-from . import voice_monitor  # pastikan ShrutiMusic/voice_monitor.py ada
 
 # Run lightweight initialization (these should not import core.bot)
 dirr()
