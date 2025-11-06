@@ -118,6 +118,7 @@ Halo {user.mention}, kamu adalah pemilik bot music ini!
 🏠 <b>Grup:</b> {chat_name}
 
 <blockquote><b><b>Terima kasih sudah hadir, Owner!</b></a></b></blockquote>
+</blockquote>
 """
             await asyncio.sleep(3)
             await userbot.send_message(chat_id, text=owner_welcome_text)
