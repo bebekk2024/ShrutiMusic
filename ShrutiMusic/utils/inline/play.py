@@ -51,36 +51,46 @@ def track_markup(_, videoid, user_id, channel, fplay):
 def stream_markup_timer(_, chat_id, played, dur):
     played_sec = time_to_seconds(played)
     duration_sec = time_to_seconds(dur)
-    bar_length = 10  # Jumlah kotak progress bar
     percentage = (played_sec / duration_sec) * 100
-    pos = max(0, min(bar_length - 1, int(bar_length * percentage / 100)))
-    # Animated-style: 🎵 berjalan sesuai progress di atas bar "▬"
-    bar = ""
-    for i in range(bar_length):
-        if i == pos:
-            bar += "🎵"
-        else:
-            bar += "▬"
-
-    bar_with_time = f"⏳ {played} {bar} {dur} 🕰️"
+    umm = math.floor(percentage)
+    if 0 < umm <= 10:
+        bar = "◉—————————"
+    elif 10 < umm < 20:
+        bar = "—◉————————"
+    elif 20 <= umm < 30:
+        bar = "——◉———————"
+    elif 30 <= umm < 40:
+        bar = "———◉——————"
+    elif 40 <= umm < 50:
+        bar = "————◉—————"
+    elif 50 <= umm < 60:
+        bar = "—————◉————"
+    elif 60 <= umm < 70:
+        bar = "——————◉———"
+    elif 70 <= umm < 80:
+        bar = "———————◉——"
+    elif 80 <= umm < 95:
+        bar = "————————◉—"
+    else:
+        bar = "—————————◉"
 
     buttons = [
         [
             InlineKeyboardButton(
-                text=bar_with_time,
+                text=f"{played} {bar} {dur}",
                 url=f"https://t.me/{BOT_USERNAME}?startgroup=true"
             )
         ],
         [
-            InlineKeyboardButton(text="▶️ Resume", callback_data=f"ADMIN Resume|{chat_id}"),
-            InlineKeyboardButton(text="⏸️ Pause", callback_data=f"ADMIN Pause|{chat_id}"),
-            InlineKeyboardButton(text="🔄 Replay", callback_data=f"ADMIN Replay|{chat_id}"),
-            InlineKeyboardButton(text="⏭️ Skip", callback_data=f"ADMIN Skip|{chat_id}"),
-            InlineKeyboardButton(text="⏹️ Stop", callback_data=f"ADMIN Stop|{chat_id}"),
+            InlineKeyboardButton(text="▷", callback_data=f"ADMIN Resume|{chat_id}"),
+            InlineKeyboardButton(text="II", callback_data=f"ADMIN Pause|{chat_id}"),
+            InlineKeyboardButton(text="↻", callback_data=f"ADMIN Replay|{chat_id}"),
+            InlineKeyboardButton(text="‣‣I", callback_data=f"ADMIN Skip|{chat_id}"),
+            InlineKeyboardButton(text="▢", callback_data=f"ADMIN Stop|{chat_id}"),
         ],
         [
-            InlineKeyboardButton(text="🆘 Support", url=SUPPORT_GROUP),
-            InlineKeyboardButton(text="📢 Channel", url=SUPPORT_CHANNEL),
+            InlineKeyboardButton(text="💬 sᴜᴘᴘᴏʀᴛ", url=SUPPORT_GROUP),
+            InlineKeyboardButton(text="📢 ᴄʜᴀɴɴᴇʟ", url=SUPPORT_CHANNEL),
         ],
         [InlineKeyboardButton(text=_["CLOSE_BUTTON"], callback_data="close")],
     ]
@@ -90,11 +100,11 @@ def stream_markup_timer(_, chat_id, played, dur):
 def stream_markup(_, chat_id):
     buttons = [
         [
-            InlineKeyboardButton(text="▶️ Resume", callback_data=f"ADMIN Resume|{chat_id}"),
-            InlineKeyboardButton(text="⏸️ Pause", callback_data=f"ADMIN Pause|{chat_id}"),
-            InlineKeyboardButton(text="🔄 Replay", callback_data=f"ADMIN Replay|{chat_id}"),
-            InlineKeyboardButton(text="⏭️ Skip", callback_data=f"ADMIN Skip|{chat_id}"),
-            InlineKeyboardButton(text="⏹️ Stop", callback_data=f"ADMIN Stop|{chat_id}"),
+            InlineKeyboardButton(text="▷", callback_data=f"ADMIN Resume|{chat_id}"),
+            InlineKeyboardButton(text="II", callback_data=f"ADMIN Pause|{chat_id}"),
+            InlineKeyboardButton(text="↻", callback_data=f"ADMIN Replay|{chat_id}"),
+            InlineKeyboardButton(text="‣‣I", callback_data=f"ADMIN Skip|{chat_id}"),
+            InlineKeyboardButton(text="▢", callback_data=f"ADMIN Stop|{chat_id}"),
         ],
         [InlineKeyboardButton(text=_["CLOSE_BUTTON"], callback_data="close")],
     ]
