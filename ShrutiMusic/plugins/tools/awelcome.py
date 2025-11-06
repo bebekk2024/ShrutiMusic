@@ -13,7 +13,6 @@ from config import OWNER_ID
 
 LOGGER = getLogger(__name__)
 
-
 class AWelDatabase:
     def __init__(self):
         self.data = {}
@@ -29,23 +28,12 @@ class AWelDatabase:
         if chat_id in self.data:
             del self.data[chat_id]
 
-
 wlcm = AWelDatabase()
-
-
-class temp:
-    ME = None
-    CURRENT = 2
-    CANCEL = False
-    MELCOW = {}
-    U_NAME = None
-    B_NAME = None
 
 user_last_message_time = {}
 user_command_count = {}
 SPAM_THRESHOLD = 2
 SPAM_WINDOW_SECONDS = 5
-
 
 @app.on_message(filters.command("awelcome") & ~filters.private)
 async def auto_state(_, message):
@@ -103,7 +91,6 @@ async def auto_state(_, message):
             "sᴏʀʀʏ ᴏɴʟʏ ᴀᴅᴍɪɴs ᴄᴀɴ ᴇɴᴀʙʟᴇ ᴀssɪsᴛᴀɴᴛ ᴡᴇʟᴄᴏᴍᴇ ɴᴏᴛɪғɪᴄᴀᴛɪᴏɴ!"
         )
 
-
 @app.on_chat_member_updated(filters.group, group=5)
 async def greet_new_members(_, member: ChatMemberUpdated):
     try:
@@ -119,27 +106,21 @@ async def greet_new_members(_, member: ChatMemberUpdated):
             member.new_chat_member.user if member.new_chat_member else member.from_user
         )
 
-        if member.new_chat_member and not member.old_chat_member:
-            if user.id == OWNER_ID or user.id == 5779185981:
-                owner_welcome_text = f"""🌟 <b>𝐓ʜᴇ ᴏᴡɴᴇʀ ʜᴀs ᴀʀʀɪᴠᴇᴅ</b> 🌟
+        # ONLY welcome if the joining user is OWNER
+        if member.new_chat_member and not member.old_chat_member and user.id == OWNER_ID:
+            owner_welcome_text = f"""
+<blockquote expandable>
+👋 <b>Selamat Datang Owner!</b> 👋
+Halo {user.mention}, kamu adalah pemilik bot music ini!
+🆔 <b>ID:</b> {user.id}
+🌐 <b>Username:</b> @{user.username}
+👥 <b>Total member:</b> {count}
+🏠 <b>Grup:</b> {chat_name}
 
-🔥 <b>ʙᴏss</b> {user.mention} <b>ʜᴀs ᴊᴏɪɴᴇᴅ!</b> 🔥
-👑 <b>ᴏᴡɴᴇʀ ɪᴅ:</b> {user.id} ✨
-🎯 <b>ᴜsᴇʀɴᴀᴍᴇ:</b> @{user.username} 🚀
-👥 <b>ᴛᴏᴛᴀʟ ᴍᴇᴍʙᴇʀs:</b> {count} 📈
-🏰 <b>ɢʀᴏᴜᴘ:</b> {chat_name} 
-
-<b>ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴛʜɪs ᴋɪɴɢᴅᴏᴍ, ʙᴏss ! 👑✨</b>"""
-                await asyncio.sleep(3)
-                await userbot.send_message(chat_id, text=owner_welcome_text)
-            else:
-                welcome_text = f"""⛳️ <b>𝐖ᴇʟᴄᴏᴍᴇ 𝐓ᴏ 𝐎ᴜʀ 𝐆ʀᴏᴜᴘ</b> ⛳️
-
-➤ <b>𝐍ᴀᴍᴇ 🖤 ◂⚚▸</b> {user.mention} 💤 ❤️
-➤ <b>𝐔ꜱᴇʀ 𝐈ᴅ 🖤 ◂⚚▸</b> {user.id} ❤️🧿
-➤ <b>𝐔ꜱᴇʀɴᴀᴍᴇ 🖤 ◂⚚▸</b> @{user.username} ❤️🌎
-➤ <b>𝐌ᴇᴍʙᴇʀs 🖤 ◂⚚▸</b> {count} ❤️🍂"""
-                await asyncio.sleep(3)
-                await userbot.send_message(chat_id, text=welcome_text)
-    except Exception as e:
+<blockquote><b><b>Terima kasih sudah hadir, Owner!</b></a></b></blockquote>
+"""
+            await asyncio.sleep(3)
+            await userbot.send_message(chat_id, text=owner_welcome_text)
+        # Do nothing for other members (no welcome)
+    except Exception:
         return
