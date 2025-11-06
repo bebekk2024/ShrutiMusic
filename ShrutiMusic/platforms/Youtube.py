@@ -3,19 +3,17 @@ import os
 import re
 import json
 from typing import Union
+import yt_dlp
 from pyrogram.enums import MessageEntityType
 from pyrogram.types import Message
 from youtubesearchpython.__future__ import VideosSearch
 from ShrutiMusic import app, LOGGER
 from ShrutiMusic.utils.formatters import time_to_seconds
 import random
-import yt_dlp
+import aiohttp
 from urllib.parse import urlparse
 
-# NOTE:
-# This version uses yt-dlp + cookies (if available) directly (no external YOUR_API_URL).
-# Downloads are performed via async subprocess calls to yt-dlp to avoid blocking the event loop.
-# yt_dlp Python API is used for metadata/formats extraction inside a thread executor.
+YOUR_API_URL = None
 
 def cookie_txt_file():
     cookie_dir = "ShrutiMusic/cookies"
@@ -27,243 +25,229 @@ def cookie_txt_file():
     cookie_file = os.path.join(cookie_dir, random.choice(cookies_files))
     return cookie_file
 
+async def load_api_url():
+    global YOUR_API_URL
+    logger = LOGGER("ShrutiMusic/platforms/Youtube.py")
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get("https://pastebin.com/raw/rLsBhAQa") as response:
+                if response.status == 200:
+                    content = await response.text()
+                    YOUR_API_URL = content.strip()
+                    logger.info("API URL loaded successfully")
+                else:
+                    logger.error(f"Failed to fetch API URL. HTTP Status: {response.status}")
+    except Exception as e:
+        logger.error(f"Error loading API URL: {e}")
+
+async def get_api_url():
+    global YOUR_API_URL
+    if not YOUR_API_URL:
+        await load_api_url()
+    return YOUR_API_URL
+
 async def get_telegram_file(telegram_link: str, video_id: str, file_type: str) -> str:
-    """
-    Download file from Telegram link or channel/message (via Pyrogram).
-    Returns local file path or None.
-    """
     logger = LOGGER("ShrutiMusic/platforms/Youtube.py")
     try:
         extension = ".webm" if file_type == "audio" else ".mkv"
         file_path = os.path.join("downloads", f"{video_id}{extension}")
 
-        # If already exists locally, return immediately
         if os.path.exists(file_path):
             logger.info(f"📂 [LOCAL] File exists: {video_id}")
             return file_path
 
-        # Try parse telegram_link which may be like https://t.me/channel/123
-        chat = None
-        msg_id = None
-        if telegram_link:
-            parsed = urlparse(telegram_link)
-            parts = parsed.path.strip("/").split("/")
-            if len(parts) >= 2:
-                chat = f"@{parts[0]}"
-                try:
-                    msg_id = int(parts[1])
-                except Exception:
-                    msg_id = None
-
-        # If not parseable from link, user might have provided a t.me shortlink or similar; fallback to get_messages directly if possible
-        if not chat or not msg_id:
-            # try to infer from full link or DB (caller may pass telegram_link only)
-            try:
-                # Attempt to get messages using the full link; Pyrogram supports get_messages(chat, id)
-                # If telegram_link isn't parseable we skip.
-                pass
-            except Exception:
-                pass
-
-        if not chat or not msg_id:
-            logger.error(f"❌ Invalid Telegram link/format: {telegram_link}")
+        parsed = urlparse(telegram_link)
+        parts = parsed.path.strip("/").split("/")
+        if len(parts) < 2:
+            logger.error(f"❌ Invalid Telegram link format: {telegram_link}")
+            return None
+        channel_name = parts[0]
+        try:
+            message_id = int(parts[1])
+        except ValueError:
+            logger.error(f"❌ Invalid message_id in Telegram link: {telegram_link}")
             return None
 
-        logger.info(f"📥 [TELEGRAM] Downloading from {chat}/{msg_id}")
+        logger.info(f"📥 [TELEGRAM] Downloading from @{channel_name}/{message_id}")
+        msg = await app.get_messages(channel_name, message_id)
         os.makedirs("downloads", exist_ok=True)
-        msg = await app.get_messages(chat, msg_id)
-        # msg may be None or empty; guard it
-        if not msg:
-            logger.error(f"❌ [TELEGRAM] Message not found: {chat}/{msg_id}")
-            return None
-
         await msg.download(file_name=file_path)
-
-        # wait a short while for file to exist
-        timeout = 0.0
-        while not os.path.exists(file_path) and timeout < 60.0:
+        timeout = 0
+        while not os.path.exists(file_path) and timeout < 60:
             await asyncio.sleep(0.5)
             timeout += 0.5
-
         if os.path.exists(file_path):
             logger.info(f"✅ [TELEGRAM] Downloaded: {video_id}")
             return file_path
         else:
-            logger.error(f"❌ [TELEGRAM] Timeout while downloading: {video_id}")
+            logger.error(f"❌ [TELEGRAM] Timeout: {video_id}")
             return None
-
     except Exception as e:
         logger.error(f"❌ [TELEGRAM] Failed to download {video_id}: {e}")
         return None
 
-# Helper to run yt-dlp as subprocess (async)
-async def _run_yt_dlp_subprocess(args, logger):
-    proc = await asyncio.create_subprocess_exec(
-        *args,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    out, err = await proc.communicate()
-    stdout = out.decode(errors="ignore") if out else ""
-    stderr = err.decode(errors="ignore") if err else ""
-    return proc.returncode, stdout, stderr
-
-async def download_song(link: str) -> Union[str, None]:
-    """
-    Download audio using yt-dlp with cookies if available.
-    Returns local file path on success, else None.
-    """
+async def download_song(link: str) -> str:
     logger = LOGGER("ShrutiMusic/platforms/Youtube.py")
-    # normalize link if only id passed
+    api_url = await get_api_url()
+    if not api_url:
+        logger.error("API URL not available")
+        return None
     video_id = link.split('v=')[-1].split('&')[0] if 'v=' in link else link
     logger.info(f"🎵 [AUDIO] Starting download for: {video_id}")
 
     if not video_id or len(video_id) < 3:
-        logger.error("Invalid video id for audio download")
         return None
 
     DOWNLOAD_DIR = "downloads"
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
     file_path = os.path.join(DOWNLOAD_DIR, f"{video_id}.webm")
-
     if os.path.exists(file_path):
         logger.info(f"🎵 [LOCAL] File exists: {video_id}")
         return file_path
-
-    cookie_file = cookie_txt_file()
-    # Build yt-dlp args: prefer webm/opus audio
-    ytdl_cmd = [
-        "yt-dlp",
-        "--no-playlist",
-        "--newline",
-        "-f", "bestaudio[ext=webm]/bestaudio",
-        "-o", file_path,
-        link,
-    ]
-    if cookie_file:
-        ytdl_cmd[1:1] = ["--cookies", cookie_file]  # insert after yt-dlp
-
-    logger.info(f"[AUDIO] Running yt-dlp for {video_id} (cookies: {'yes' if cookie_file else 'no'})")
     try:
-        ret, out, err = await _run_yt_dlp_subprocess(ytdl_cmd, logger)
-        if ret != 0:
-            logger.error(f"[AUDIO] yt-dlp failed for {video_id}: {err.strip()}")
-            # cleanup partial file if exists
-            if os.path.exists(file_path) and os.path.getsize(file_path) == 0:
-                try:
-                    os.remove(file_path)
-                except:
-                    pass
-            return None
-
-        if os.path.exists(file_path):
-            logger.info(f"🎉 [AUDIO] Downloaded: {video_id}")
-            return file_path
-        else:
-            logger.error(f"[AUDIO] yt-dlp finished but file not found: {file_path}")
-            return None
+        async with aiohttp.ClientSession() as session:
+            params = {"url": video_id, "type": "audio"}
+            async with session.get(
+                f"{api_url}/download", params=params, timeout=aiohttp.ClientTimeout(total=60)
+            ) as response:
+                data = await response.json()
+                if response.status != 200:
+                    logger.error(f"[AUDIO] API error: {response.status}")
+                    return None
+                if data.get("link") and "t.me" in str(data.get("link")):
+                    telegram_link = data["link"]
+                    logger.info(f"🔗 [AUDIO] Telegram link received: {telegram_link}")
+                    downloaded_file = await get_telegram_file(telegram_link, video_id, "audio")
+                    if downloaded_file:
+                        return downloaded_file
+                    else:
+                        logger.warning(f"⚠️ [AUDIO] Telegram download failed")
+                        return None
+                elif data.get("status") == "success" and data.get("stream_url"):
+                    stream_url = data["stream_url"]
+                    logger.info(f"[AUDIO] Stream URL obtained: {video_id}")
+                    async with session.get(stream_url, timeout=aiohttp.ClientTimeout(total=300)) as file_response:
+                        if file_response.status != 200:
+                            logger.error(f"[AUDIO] Download failed: {file_response.status}")
+                            return None
+                        with open(file_path, "wb") as f:
+                            async for chunk in file_response.content.iter_chunked(16384):
+                                f.write(chunk)
+                        logger.info(f"🎉 [AUDIO] Downloaded: {video_id}")
+                        return file_path
+                else:
+                    logger.error(f"[AUDIO] Invalid response: {data}")
+                    return None
+    except asyncio.TimeoutError:
+        logger.error(f"[AUDIO] Timeout: {video_id}")
+        return None
     except Exception as e:
-        logger.error(f"[AUDIO] Exception while downloading {video_id}: {e}")
+        logger.error(f"[AUDIO] Exception: {video_id} - {e}")
         return None
 
-async def download_video(link: str) -> Union[str, None]:
-    """
-    Download video using yt-dlp with cookies if available.
-    Returns local file path on success, else None.
-    """
+async def download_video(link: str) -> str:
     logger = LOGGER("ShrutiMusic/platforms/Youtube.py")
+    api_url = await get_api_url()
+    if not api_url:
+        logger.error("API URL not available")
+        return None
     video_id = link.split('v=')[-1].split('&')[0] if 'v=' in link else link
     logger.info(f"🎥 [VIDEO] Starting download for: {video_id}")
-
     if not video_id or len(video_id) < 3:
-        logger.error("Invalid video id for download")
         return None
-
     DOWNLOAD_DIR = "downloads"
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
     file_path = os.path.join(DOWNLOAD_DIR, f"{video_id}.mkv")
-
     if os.path.exists(file_path):
         logger.info(f"🎥 [LOCAL] File exists: {video_id}")
         return file_path
-
-    cookie_file = cookie_txt_file()
-    # Prefer bestvideo+bestaudio merged into mkv
-    ytdl_cmd = [
-        "yt-dlp",
-        "--no-playlist",
-        "--merge-output-format", "mkv",
-        "-f", "bestvideo+bestaudio/best",
-        "-o", file_path,
-        link,
-    ]
-    if cookie_file:
-        ytdl_cmd[1:1] = ["--cookies", cookie_file]
-
-    logger.info(f"[VIDEO] Running yt-dlp for {video_id} (cookies: {'yes' if cookie_file else 'no'})")
     try:
-        ret, out, err = await _run_yt_dlp_subprocess(ytdl_cmd, logger)
-        if ret != 0:
-            logger.error(f"[VIDEO] yt-dlp failed for {video_id}: {err.strip()}")
-            if os.path.exists(file_path) and os.path.getsize(file_path) == 0:
-                try:
-                    os.remove(file_path)
-                except:
-                    pass
-            return None
-
-        if os.path.exists(file_path):
-            logger.info(f"🎉 [VIDEO] Downloaded: {video_id}")
-            return file_path
-        else:
-            logger.error(f"[VIDEO] yt-dlp finished but file not found: {file_path}")
-            return None
+        async with aiohttp.ClientSession() as session:
+            params = {"url": video_id, "type": "video"}
+            async with session.get(f"{api_url}/download", params=params, timeout=aiohttp.ClientTimeout(total=60)) as response:
+                data = await response.json()
+                if response.status != 200:
+                    logger.error(f"[VIDEO] API error: {response.status}")
+                    return None
+                if data.get("link") and "t.me" in str(data.get("link")):
+                    telegram_link = data["link"]
+                    logger.info(f"🔗 [VIDEO] Telegram link received: {telegram_link}")
+                    downloaded_file = await get_telegram_file(telegram_link, video_id, "video")
+                    if downloaded_file:
+                        return downloaded_file
+                    else:
+                        logger.warning(f"⚠️ [VIDEO] Telegram download failed")
+                        return None
+                elif data.get("status") == "success" and data.get("stream_url"):
+                    stream_url = data["stream_url"]
+                    logger.info(f"[VIDEO] Stream URL obtained: {video_id}")
+                    async with session.get(stream_url, timeout=aiohttp.ClientTimeout(total=600)) as file_response:
+                        if file_response.status != 200:
+                            logger.error(f"[VIDEO] Download failed: {file_response.status}")
+                            return None
+                        with open(file_path, "wb") as f:
+                            async for chunk in file_response.content.iter_chunked(16384):
+                                f.write(chunk)
+                        logger.info(f"🎉 [VIDEO] Downloaded: {video_id}")
+                        return file_path
+                else:
+                    logger.error(f"[VIDEO] Invalid response: {data}")
+                    return None
+    except asyncio.TimeoutError:
+        logger.error(f"[VIDEO] Timeout: {video_id}")
+        return None
     except Exception as e:
-        logger.error(f"[VIDEO] Exception while downloading {video_id}: {e}")
+        logger.error(f"[VIDEO] Exception: {video_id} - {e}")
         return None
 
 async def check_file_size(link):
-    """
-    Use yt-dlp -J to get JSON info (requires cookies if needed).
-    Returns total filesize (sum of formats' filesize) in bytes or None.
-    """
-    cookie_file = cookie_txt_file()
-    cmd = ["yt-dlp"]
-    if cookie_file:
-        cmd += ["--cookies", cookie_file]
-    cmd += ["-J", link]
+    def parse_size(formats):
+        total_size = 0
+        for format in formats:
+            if 'filesize' in format and format['filesize']:
+                total_size += format['filesize']
+        return total_size
 
-    proc = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE
-    )
-    out, err = await proc.communicate()
-    if proc.returncode != 0:
+    async def get_format_info(link):
+        cookie_file = cookie_txt_file()
+        if not cookie_file:
+            print("No cookies found. Cannot check file size.")
+            return None
+        proc = await asyncio.create_subprocess_exec(
+            "yt-dlp",
+            "--cookies", cookie_file,
+            "-J",
+            link,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            print(f'Error:\n{stderr.decode()}')
+            return None
+        return json.loads(stdout.decode())
+    info = await get_format_info(link)
+    if info is None:
         return None
-    try:
-        info = json.loads(out.decode())
-    except Exception:
+    formats = info.get('formats', [])
+    if not formats:
+        print("No formats found.")
         return None
-    total = 0
-    for f in info.get("formats", []):
-        fs = f.get("filesize") or f.get("filesize_approx") or 0
-        if fs:
-            total += int(fs)
-    return total
+    total_size = parse_size(formats)
+    return total_size
 
 async def shell_cmd(cmd):
     proc = await asyncio.create_subprocess_shell(
         cmd,
         stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
     )
     out, errorz = await proc.communicate()
-    if errorz:
-        if "unavailable videos are hidden" in (errorz.decode("utf-8")).lower():
-            return out.decode("utf-8")
-        else:
-            return errorz.decode("utf-8")
+    err = errorz.decode("utf-8")
+    if errorz and "unavailable videos are hidden" in err.lower():
+        return out.decode("utf-8")
+    elif errorz:
+        return err
     return out.decode("utf-8")
 
 class YouTubeAPI:
@@ -362,18 +346,11 @@ class YouTubeAPI:
             link = link.split("&")[0]
         cookie_file = cookie_txt_file()
         if not cookie_file:
-            # still try without cookies
-            cookie_arg = ""
-        else:
-            cookie_arg = f"--cookies {cookie_file}"
-        playlist = await shell_cmd(
-            f"yt-dlp -i --get-id --flat-playlist {cookie_arg} --playlist-end {limit} --skip-download {link}"
+            return []
+        playlist_raw = await shell_cmd(
+            f"yt-dlp -i --get-id --flat-playlist --cookies {cookie_file} --playlist-end {limit} --skip-download {link}"
         )
-        try:
-            result = [key for key in playlist.split("\n") if key]
-        except:
-            result = []
-        return result
+        return [key.strip() for key in playlist_raw.split("\n") if key.strip()]
 
     async def track(self, link: str, videoid: Union[bool, str] = None):
         if videoid:
@@ -396,43 +373,37 @@ class YouTubeAPI:
         return track_details, vidid
 
     async def formats(self, link: str, videoid: Union[bool, str] = None):
-        """
-        Extract formats using yt_dlp in a thread executor to avoid blocking.
-        Returns (formats_available, link)
-        """
         if videoid:
             link = self.base + str(link)
         if "&" in link:
             link = link.split("&")[0]
         cookie_file = cookie_txt_file()
-        ytdl_opts = {"quiet": True}
-        if cookie_file:
-            ytdl_opts["cookiefile"] = cookie_file
-
-        def _extract():
+        if not cookie_file:
+            return [], link
+        ytdl_opts = {"quiet": True, "cookiefile": cookie_file}
+        def _extract_formats():
             ydl = yt_dlp.YoutubeDL(ytdl_opts)
             with ydl:
                 formats_available = []
                 r = ydl.extract_info(link, download=False)
-                for fmt in r.get("formats", []):
+                for format in r.get("formats", []):
                     try:
-                        if "dash" not in str(fmt.get("format", "")).lower():
+                        if "dash" not in str(format.get("format", "")).lower():
                             formats_available.append(
                                 {
-                                    "format": fmt.get("format"),
-                                    "filesize": fmt.get("filesize") or fmt.get("filesize_approx"),
-                                    "format_id": fmt.get("format_id"),
-                                    "ext": fmt.get("ext"),
-                                    "format_note": fmt.get("format_note"),
+                                    "format": format.get("format"),
+                                    "filesize": format.get("filesize"),
+                                    "format_id": format.get("format_id"),
+                                    "ext": format.get("ext"),
+                                    "format_note": format.get("format_note"),
                                     "yturl": link,
                                 }
                             )
                     except Exception:
                         continue
                 return formats_available, link
-
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(None, _extract)
+        return await loop.run_in_executor(None, _extract_formats)
 
     async def slider(self, link: str, query_type: int, videoid: Union[bool, str] = None):
         if videoid:
