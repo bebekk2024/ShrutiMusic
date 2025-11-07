@@ -19,7 +19,6 @@
 # Contact for permissions:
 # Email: badboy809075@gmail.com
 
-
 import asyncio
 
 from pyrogram.enums import ChatMemberStatus
@@ -48,7 +47,6 @@ from strings import get_string
 
 links = {}
 
-
 def PlayWrapper(command):
     async def wrapper(client, message):
         language = await get_lang(message.chat.id)
@@ -72,7 +70,6 @@ def PlayWrapper(command):
                     text=f"{app.mention} ɪs ᴜɴᴅᴇʀ ᴍᴀɪɴᴛᴇɴᴀɴᴄᴇ, ᴠɪsɪᴛ <a href={SUPPORT_GROUP}>sᴜᴘᴘᴏʀᴛ ᴄʜᴀᴛ</a> ғᴏʀ ᴋɴᴏᴡɪɴɢ ᴛʜᴇ ʀᴇᴀsᴏɴ.",
                     disable_web_page_preview=True,
                 )
-                
 
         try:
             await message.delete()
@@ -90,9 +87,11 @@ def PlayWrapper(command):
             else None
         )
         url = await YouTube.url(message)
+        # PATCH: PERBAIKAN SAFE GET UNTUK command dan argumen play
+        # pastikan message.command diakses aman jika command tidak lengkap
         if audio_telegram is None and video_telegram is None and url is None:
-            if len(message.command) < 2:
-                if "stream" in message.command:
+            if not hasattr(message, "command") or len(message.command) < 2:
+                if hasattr(message, "command") and "stream" in message.command:
                     return await message.reply_text(_["str_1"])
                 buttons = botplaylist_markup(_)
                 return await message.reply_photo(
@@ -100,7 +99,8 @@ def PlayWrapper(command):
                     caption=_["play_18"],
                     reply_markup=InlineKeyboardMarkup(buttons),
                 )
-        if message.command[0][0] == "c":
+        command_exist = hasattr(message, "command")
+        if command_exist and message.command[0][0] == "c":
             chat_id = await get_cmode(message.chat.id)
             if chat_id is None:
                 return await message.reply_text(_["setting_7"])
@@ -122,14 +122,14 @@ def PlayWrapper(command):
                 else:
                     if message.from_user.id not in admins:
                         return await message.reply_text(_["play_4"])
-        if message.command[0][0] == "v":
+        if command_exist and message.command[0][0] == "v":
             video = True
         else:
             if "-v" in message.text:
                 video = True
             else:
-                video = True if message.command[0][1] == "v" else None
-        if message.command[0][-1] == "e":
+                video = True if command_exist and message.command[0][1] == "v" else None
+        if command_exist and message.command[0][-1] == "e":
             if not await is_active_chat(chat_id):
                 return await message.reply_text(_["play_16"])
             fplay = True
@@ -217,7 +217,6 @@ def PlayWrapper(command):
 
     return wrapper
 
-
 # ©️ Copyright Reserved - @NoxxOP  Nand Yaduwanshi
 
 # ===========================================
@@ -225,6 +224,5 @@ def PlayWrapper(command):
 # 🔗 GitHub : https://github.com/NoxxOP/ShrutiMusic
 # 📢 Telegram Channel : https://t.me/ShrutiBots
 # ===========================================
-
 
 # ❤️ Love From ShrutiBots 
