@@ -155,8 +155,8 @@ async def gen_thumb(videoid: str):
 
         # top-left label
         tl_font = ImageFont.truetype(FONT_BOLD_PATH, 34)
-        draw.text((28+1, 18+1), "ShrutiMusic", fill=TEXT_SHADOW, font=tl_font)
-        draw.text((28, 18), "ShrutiMusic", fill=TEXT_WHITE, font=tl_font)
+        draw.text((28+1, 18+1), "♑ CapricornMusic ♫", fill=TEXT_SHADOW, font=tl_font)
+        draw.text((28, 18), "♑ CapricornMusic ♫", fill=TEXT_WHITE, font=tl_font)
 
         # right text block
         info_x = circle_x + thumb_size + 60
