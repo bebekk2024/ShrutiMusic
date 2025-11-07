@@ -21,7 +21,9 @@
 
 
 from typing import Union
+
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
 
 def queue_markup(
     _,
@@ -34,11 +36,11 @@ def queue_markup(
     not_dur = [
         [
             InlineKeyboardButton(
-                text="🎵 " + _["QU_B_1"],
+                text=_["QU_B_1"],
                 callback_data=f"GetQueued {CPLAY}|{videoid}",
             ),
             InlineKeyboardButton(
-                text="🗑️ " + _["CLOSE_BUTTON"],
+                text=_["CLOSE_BUTTON"],
                 callback_data="close",
             ),
         ]
@@ -46,17 +48,17 @@ def queue_markup(
     dur = [
         [
             InlineKeyboardButton(
-                text=f"⏳ {_['QU_B_2'].format(played, dur)}",
+                text=_["QU_B_2"].format(played, dur),
                 callback_data="GetTimer",
             )
         ],
         [
             InlineKeyboardButton(
-                text="🎵 " + _["QU_B_1"],
+                text=_["QU_B_1"],
                 callback_data=f"GetQueued {CPLAY}|{videoid}",
             ),
             InlineKeyboardButton(
-                text="🗑️ " + _["CLOSE_BUTTON"],
+                text=_["CLOSE_BUTTON"],
                 callback_data="close",
             ),
         ],
@@ -64,16 +66,17 @@ def queue_markup(
     upl = InlineKeyboardMarkup(not_dur if DURATION == "Unknown" else dur)
     return upl
 
+
 def queue_back_markup(_, CPLAY):
     upl = InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton(
-                    text="⬅️ " + _["BACK_BUTTON"],
+                    text=_["BACK_BUTTON"],
                     callback_data=f"queue_back_timer {CPLAY}",
                 ),
                 InlineKeyboardButton(
-                    text="🗑️ " + _["CLOSE_BUTTON"],
+                    text=_["CLOSE_BUTTON"],
                     callback_data="close",
                 ),
             ]
@@ -81,21 +84,26 @@ def queue_back_markup(_, CPLAY):
     )
     return upl
 
+
 def aq_markup(_, chat_id):
     buttons = [
         [
             InlineKeyboardButton(
-                text="🗑️ " + _["CLOSE_BUTTON"],
-                callback_data="close",
+                    text=_["CLOSE_BUTTON"],
+                    callback_data="close",
             ),
         ],
     ]
     return buttons
 
+
 # ©️ Copyright Reserved - @NoxxOP  Nand Yaduwanshi
+
 # ===========================================
 # ©️ 2025 Nand Yaduwanshi (aka @NoxxOP)
 # 🔗 GitHub : https://github.com/NoxxOP/ShrutiMusic
 # 📢 Telegram Channel : https://t.me/ShrutiBots
 # ===========================================
+
+
 # ❤️ Love From ShrutiBots 
