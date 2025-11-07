@@ -28,6 +28,7 @@ telegraph
 unidecode
 youtube-search
 youtube-search-python
+uvloop
 # yt-dlp langsung dari upstream github:
 git+https://github.com/yt-dlp/yt-dlp.git
 # ===========================================
@@ -35,4 +36,5 @@ git+https://github.com/yt-dlp/yt-dlp.git
 # 🔗 GitHub : https://github.com/NoxxOP/ShrutiMusic
 # 📢 Telegram Channel : https://t.me/ShrutiBots
 # ===========================================
+
 
