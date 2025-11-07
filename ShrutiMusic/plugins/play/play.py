@@ -237,7 +237,7 @@ async def play_commnd(
                 except:
                     return await safe_edit(mystic, message, _["play_3"])
                 streamtype = "youtube"
-                img = details["thumb"]
+                img = details.get("thumb", config.PLAYLIST_IMG_URL)
                 cap = _["play_10"].format(
                     details["title"],
                     details["duration_min"],
@@ -254,7 +254,7 @@ async def play_commnd(
                 except:
                     return await safe_edit(mystic, message, _["play_3"])
                 streamtype = "youtube"
-                img = details["thumb"]
+                img = details.get("thumb", config.SPOTIFY_PLAYLIST_IMG_URL)
                 cap = _["play_10"].format(details["title"], details["duration_min"])
             elif "playlist" in url:
                 try:
@@ -292,7 +292,7 @@ async def play_commnd(
                 except:
                     return await safe_edit(mystic, message, _["play_3"])
                 streamtype = "youtube"
-                img = details["thumb"]
+                img = details.get("thumb", config.PLAYLIST_IMG_URL)
                 cap = _["play_10"].format(details["title"], details["duration_min"])
             elif "playlist" in url:
                 spotify = True
@@ -312,7 +312,7 @@ async def play_commnd(
             except:
                 return await safe_edit(mystic, message, _["play_3"])
             streamtype = "youtube"
-            img = details["thumb"]
+            img = details.get("thumb", config.PLAYLIST_IMG_URL)
             cap = _["play_10"].format(details["title"], details["duration_min"])
         elif await SoundCloud.valid(url):
             try:
@@ -476,7 +476,7 @@ async def play_commnd(
                 except Exception:
                     pass
                 await message.reply_photo(
-                    photo=details["thumb"],
+                    photo=details.get("thumb", config.PLAYLIST_IMG_URL),
                     caption=_["play_10"].format(
                         details["title"].title(),
                         details["duration_min"],
