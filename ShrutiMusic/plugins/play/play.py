@@ -46,18 +46,12 @@ from ShrutiMusic.utils.logger import play_logs
 from ShrutiMusic.utils.stream.stream import stream
 from config import BANNED_USERS, lyrical
 
-
 async def safe_edit(mystic_obj, fallback_target, text, reply_markup=None):
-    """
-    Try to edit mystic_obj; on RPCError (MessageIdInvalid etc.) fall back to replying/sending a new message.
-    fallback_target: original message object or chat_id to use for fallback.
-    """
     try:
         if mystic_obj:
             return await mystic_obj.edit_text(text, reply_markup=reply_markup)
     except RPCError as e:
         try:
-            # fallback: reply to original message object if available
             if hasattr(fallback_target, "reply_text"):
                 return await fallback_target.reply_text(text, reply_markup=reply_markup)
             else:
@@ -65,7 +59,6 @@ async def safe_edit(mystic_obj, fallback_target, text, reply_markup=None):
         except Exception:
             return None
     except Exception:
-        # other unexpected exceptions, try fallback similarly
         try:
             if hasattr(fallback_target, "reply_text"):
                 return await fallback_target.reply_text(text, reply_markup=reply_markup)
@@ -74,20 +67,11 @@ async def safe_edit(mystic_obj, fallback_target, text, reply_markup=None):
         except Exception:
             return None
 
-
 @app.on_message(
-    filters.command(
-        [
-            "play",
-            "vplay",
-            "cplay",
-            "cvplay",
-            "playforce",
-            "vplayforce",
-            "cplayforce",
-            "cvplayforce",
-        ]
-    )
+    filters.command([
+        "play", "vplay", "cplay", "cvplay",
+        "playforce", "vplayforce", "cplayforce", "cvplayforce"
+    ])
     & filters.group
     & ~BANNED_USERS
 )
@@ -239,8 +223,8 @@ async def play_commnd(
                 streamtype = "youtube"
                 img = details.get("thumb", config.PLAYLIST_IMG_URL)
                 cap = _["play_10"].format(
-                    details["title"],
-                    details["duration_min"],
+                    details.get("title", "Unknown"),
+                    details.get("duration_min", "Unknown"),
                 )
         elif await Spotify.valid(url):
             spotify = True
@@ -255,7 +239,7 @@ async def play_commnd(
                     return await safe_edit(mystic, message, _["play_3"])
                 streamtype = "youtube"
                 img = details.get("thumb", config.SPOTIFY_PLAYLIST_IMG_URL)
-                cap = _["play_10"].format(details["title"], details["duration_min"])
+                cap = _["play_10"].format(details.get("title", "Unknown"), details.get("duration_min", "Unknown"))
             elif "playlist" in url:
                 try:
                     details, plist_id = await Spotify.playlist(url)
@@ -293,7 +277,7 @@ async def play_commnd(
                     return await safe_edit(mystic, message, _["play_3"])
                 streamtype = "youtube"
                 img = details.get("thumb", config.PLAYLIST_IMG_URL)
-                cap = _["play_10"].format(details["title"], details["duration_min"])
+                cap = _["play_10"].format(details.get("title", "Unknown"), details.get("duration_min", "Unknown"))
             elif "playlist" in url:
                 spotify = True
                 try:
@@ -313,13 +297,13 @@ async def play_commnd(
                 return await safe_edit(mystic, message, _["play_3"])
             streamtype = "youtube"
             img = details.get("thumb", config.PLAYLIST_IMG_URL)
-            cap = _["play_10"].format(details["title"], details["duration_min"])
+            cap = _["play_10"].format(details.get("title", "Unknown"), details.get("duration_min", "Unknown"))
         elif await SoundCloud.valid(url):
             try:
                 details, track_path = await SoundCloud.download(url)
             except:
                 return await safe_edit(mystic, message, _["play_3"])
-            duration_sec = details["duration_sec"]
+            duration_sec = details.get("duration_sec", 0)
             if duration_sec > config.DURATION_LIMIT:
                 return await safe_edit(
                     mystic, message, _["play_6"].format(config.DURATION_LIMIT_MIN, app.mention)
@@ -394,8 +378,8 @@ async def play_commnd(
         streamtype = "youtube"
     if str(playmode) == "Direct":
         if not plist_type:
-            if details["duration_min"]:
-                duration_sec = time_to_seconds(details["duration_min"])
+            if details.get("duration_min"):
+                duration_sec = time_to_seconds(details.get("duration_min"))
                 if duration_sec > config.DURATION_LIMIT:
                     return await safe_edit(
                         mystic, message, _["play_6"].format(config.DURATION_LIMIT_MIN, app.mention)
@@ -478,8 +462,8 @@ async def play_commnd(
                 await message.reply_photo(
                     photo=details.get("thumb", config.PLAYLIST_IMG_URL),
                     caption=_["play_10"].format(
-                        details["title"].title(),
-                        details["duration_min"],
+                        details.get("title", "Unknown").title(),
+                        details.get("duration_min", "Unknown"),
                     ),
                     reply_markup=InlineKeyboardMarkup(buttons),
                 )
@@ -502,7 +486,6 @@ async def play_commnd(
                     reply_markup=InlineKeyboardMarkup(buttons),
                 )
                 return await play_logs(message, streamtype=f"URL Searched Inline")
-
 
 @app.on_callback_query(filters.regex("MusicStream") & ~BANNED_USERS)
 @languageCB
@@ -532,8 +515,8 @@ async def play_music(client, CallbackQuery, _):
         details, track_id = await YouTube.track(vidid, True)
     except:
         return await safe_edit(mystic, CallbackQuery.message, _["play_3"])
-    if details["duration_min"]:
-        duration_sec = time_to_seconds(details["duration_min"])
+    if details.get("duration_min"):
+        duration_sec = time_to_seconds(details.get("duration_min"))
         if duration_sec > config.DURATION_LIMIT:
             return await safe_edit(mystic, CallbackQuery.message, _["play_6"].format(config.DURATION_LIMIT_MIN, app.mention))
     else:
@@ -573,7 +556,6 @@ async def play_music(client, CallbackQuery, _):
     except Exception:
         return None
 
-
 @app.on_callback_query(filters.regex("AnonymousAdmin") & ~BANNED_USERS)
 async def anonymous_check(client, CallbackQuery):
     try:
@@ -583,7 +565,6 @@ async def anonymous_check(client, CallbackQuery):
         )
     except:
         pass
-
 
 @app.on_callback_query(filters.regex("NandPlaylists") & ~BANNED_USERS)
 @languageCB
@@ -675,7 +656,6 @@ async def play_playlists_command(client, CallbackQuery, _):
     except Exception:
         return None
 
-
 @app.on_callback_query(filters.regex("slider") & ~BANNED_USERS)
 @languageCB
 async def slider_queries(client, CallbackQuery, _):
@@ -710,8 +690,8 @@ async def slider_queries(client, CallbackQuery, _):
         med = InputMediaPhoto(
             media=thumbnail,
             caption=_["play_10"].format(
-                title.title(),
-                duration_min,
+                (title or "Unknown").title(),
+                duration_min or "Unknown",
             ),
         )
         return await CallbackQuery.edit_message_media(
@@ -731,14 +711,13 @@ async def slider_queries(client, CallbackQuery, _):
         med = InputMediaPhoto(
             media=thumbnail,
             caption=_["play_10"].format(
-                title.title(),
-                duration_min,
+                (title or "Unknown").title(),
+                duration_min or "Unknown",
             ),
         )
         return await CallbackQuery.edit_message_media(
             media=med, reply_markup=InlineKeyboardMarkup(buttons)
         )
-
 
 # ©️ Copyright Reserved - @NoxxOP  Nand Yaduwanshi
 
@@ -747,6 +726,5 @@ async def slider_queries(client, CallbackQuery, _):
 # 🔗 GitHub : https://github.com/NoxxOP/ShrutiMusic
 # 📢 Telegram Channel : https://t.me/ShrutiBots
 # ===========================================
-
 
 # ❤️ Love From ShrutiBots 
