@@ -139,7 +139,7 @@ async def antigcst_add_month(client, message: Message):
     except Exception:
         return await message.reply_text("<blockquote><b>Format: /protecttime [jumlah_bulan]</b></blockquote>")
     until = await _update_protect_until(message.chat.id, n, add=True)
-    return await message.reply_text(f"AntiGCST diaktifkan hingga: {until.strftime('%Y-%m-%d %H:%M:%S')} UTC")
+    return await message.reply_text(f"<blockquote><b>AntiGCST diaktifkan hingga: {until.strftime('%Y-%m-%d %H:%M:%S')} UTC</b></blockquote>")
 
 @app.on_message(filters.command("protectruntime") & filters.group & filters.user(OWNER_ID))
 async def antigcst_remove_month(client, message: Message):
@@ -160,7 +160,7 @@ async def antigcst_status(client, message: Message):
     sisa = int((until_ts - now) // 86400)
     until = datetime.utcfromtimestamp(until_ts)
     return await message.reply_text(
-        f"AntiGCST aktif sampai {until.strftime('%Y-%m-%d %H:%M:%S')} UTC\nSisa waktu: {sisa} hari"
+        f"<blockquote><b>AntiGCST aktif sampai {until.strftime('%Y-%m-%d %H:%M:%S')} UTC\nSisa waktu: {sisa} hari</b></blockquote>"
     )
 
 @app.on_message(filters.command(["protect", "antigcast"]) & filters.group)
@@ -574,6 +574,8 @@ __HELP__ = """
 🚫 Anti-Gcast / Anti-Spam protection
 
 • /protect or /antigcast [on|off] – Enable or disable protection.
+• /protecttime /protectruntime [on|off] – Enable or disable protection.
+• /protectstatus - to see the active period of antigcst
 • /protectmode all on|off or /antigcstmode all on|off – Per-chat strict mode: if 'all' is ON, any non-exempt message will be deleted immediately.
 • /antigcstconfig onlyowner|sudooverride|show – OWNER only: manage global toggles.
 • /free, /unfree, /listwhite, /clearwhite – Manage whitelist (approved users).
