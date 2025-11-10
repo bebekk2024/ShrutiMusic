@@ -8,7 +8,7 @@ ffmpeg-python
 gitpython
 hachoir
 heroku3
-httpx
+httpx[http2]==0.25.2
 motor
 numpy
 opencv-python
@@ -24,14 +24,18 @@ requests
 speedtest-cli
 spotipy
 tgcrypto
-telegraph 
+telegraph
 unidecode
 youtube-search
 youtube-search-python
-py-yt-search
-yt-dlp
+rapidfuzz
+uvloop
+# yt-dlp langsung dari upstream github:
+git+https://github.com/yt-dlp/yt-dlp.git
 # ===========================================
 # ©️ 2025 Nand Yaduwanshi , aka @NoxxOP
 # 🔗 GitHub : https://github.com/NoxxOP/ShrutiMusic
 # 📢 Telegram Channel : https://t.me/ShrutiBots
 # ===========================================
+
+
