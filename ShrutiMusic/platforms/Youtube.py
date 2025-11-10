@@ -12,8 +12,12 @@ from ShrutiMusic.utils.formatters import time_to_seconds
 import random
 import aiohttp
 from urllib.parse import urlparse
+from rapidfuzz import fuzz
 
 YOUR_API_URL = None
+
+SEARCH_LIMIT_QUICK = 1     # Limit untuk pencarian pertama (cepat)
+SEARCH_LIMIT_EXTENDED = 100  # Limit untuk fuzzy (deep scan)
 
 def cookie_txt_file():
     cookie_dir = "ShrutiMusic/cookies"
@@ -250,6 +254,36 @@ async def shell_cmd(cmd):
         return err
     return out.decode("utf-8")
 
+async def hybrid_best_video_result(query):
+    """
+    Hybrid pencarian cepat & akurat:
+    - Langsung cek hasil pertama.
+    - Jika tidak sangat mirip, fuzzy scan hingga limit besar.
+    """
+    norm_query = query.lower().strip()
+    # Pencarian cepat dulu (hemat waktu dan request)
+    quick_search = VideosSearch(query, limit=SEARCH_LIMIT_QUICK)
+    quick_data = (await quick_search.next()).get("result", [])
+    if quick_data:
+        titleq = quick_data[0].get("title", "").lower().strip()
+        if fuzz.ratio(titleq, norm_query) > 93:  # threshold keakuratan
+            return quick_data[0]
+    # Jika yang pertama ga mirip, fuzzy scan semua
+    ext_search = VideosSearch(query, limit=SEARCH_LIMIT_EXTENDED)
+    ext_data = (await ext_search.next()).get("result", [])
+    if not ext_data:
+        return quick_data[0] if quick_data else None
+    best_score = 0
+    best_entry = None
+    for entry in ext_data:
+        title = entry.get("title", "").lower().strip()
+        score = fuzz.ratio(title, norm_query)
+        if score > best_score:
+            best_entry, best_score = entry, score
+        if score > 96:  # optimal: sangat-sangat mirip langsung ambil
+            return entry
+    return best_entry or (quick_data[0] if quick_data else None)
+
 class YouTubeAPI:
     def __init__(self):
         self.base = "https://www.youtube.com/watch?v="
@@ -281,49 +315,32 @@ class YouTubeAPI:
                         return entity.url
         return None
 
-    async def details(self, link: str, videoid: Union[bool, str] = None):
-        if videoid:
-            link = self.base + str(link)
-        if "&" in link:
-            link = link.split("&")[0]
-        results = VideosSearch(link, limit=1)
-        resultdata = (await results.next()).get("result", [])
-        if not resultdata:
+    async def details(self, keyword: str, videoid: Union[bool, str] = None):
+        query = self.base + str(keyword) if videoid else keyword
+        best = await hybrid_best_video_result(query)
+        if not best:
             return (None, None, 0, None, None)
-        result = resultdata[0]
-        title = result.get("title")
-        duration_min = result.get("duration")
-        thumbnail = result["thumbnails"][0]["url"].split("?")[0] if result.get("thumbnails") else None
-        vidid = result.get("id")
+        title = best.get("title")
+        duration_min = best.get("duration")
+        thumbnail = best["thumbnails"][0]["url"].split("?")[0] if best.get("thumbnails") else None
+        vidid = best.get("id")
         duration_sec = int(time_to_seconds(duration_min)) if duration_min else 0
         return title, duration_min, duration_sec, thumbnail, vidid
 
-    async def title(self, link: str, videoid: Union[bool, str] = None):
-        if videoid:
-            link = self.base + str(link)
-        if "&" in link:
-            link = link.split("&")[0]
-        results = VideosSearch(link, limit=1)
-        resultdata = (await results.next()).get("result", [])
-        return resultdata[0]["title"] if resultdata else None
+    async def title(self, keyword: str, videoid: Union[bool, str] = None):
+        query = self.base + str(keyword) if videoid else keyword
+        best = await hybrid_best_video_result(query)
+        return best["title"] if best else None
 
-    async def duration(self, link: str, videoid: Union[bool, str] = None):
-        if videoid:
-            link = self.base + str(link)
-        if "&" in link:
-            link = link.split("&")[0]
-        results = VideosSearch(link, limit=1)
-        resultdata = (await results.next()).get("result", [])
-        return resultdata[0]["duration"] if resultdata else None
+    async def duration(self, keyword: str, videoid: Union[bool, str] = None):
+        query = self.base + str(keyword) if videoid else keyword
+        best = await hybrid_best_video_result(query)
+        return best["duration"] if best else None
 
-    async def thumbnail(self, link: str, videoid: Union[bool, str] = None):
-        if videoid:
-            link = self.base + str(link)
-        if "&" in link:
-            link = link.split("&")[0]
-        results = VideosSearch(link, limit=1)
-        resultdata = (await results.next()).get("result", [])
-        return resultdata[0]["thumbnails"][0]["url"].split("?")[0] if resultdata else None
+    async def thumbnail(self, keyword: str, videoid: Union[bool, str] = None):
+        query = self.base + str(keyword) if videoid else keyword
+        best = await hybrid_best_video_result(query)
+        return best["thumbnails"][0]["url"].split("?")[0] if best and best.get("thumbnails") else None
 
     async def video(self, link: str, videoid: Union[bool, str] = None):
         if videoid:
@@ -352,25 +369,35 @@ class YouTubeAPI:
         )
         return [key.strip() for key in playlist_raw.split("\n") if key.strip()]
 
-    async def track(self, link: str, videoid: Union[bool, str] = None):
-        if videoid:
-            link = self.base + str(link)
-        if "&" in link:
-            link = link.split("&")[0]
-        results = VideosSearch(link, limit=1)
-        resultdata = (await results.next()).get("result", [])
-        if not resultdata:
+    async def track(self, keyword: str, videoid: Union[bool, str] = None):
+        query = self.base + str(keyword) if videoid else keyword
+        best = await hybrid_best_video_result(query)
+        if not best:
             return {}, None
-        result = resultdata[0]
         track_details = {
-            "title": result.get("title"),
-            "link": result.get("link"),
-            "vidid": result.get("id"),
-            "duration_min": result.get("duration"),
-            "thumb": result["thumbnails"][0]["url"].split("?")[0] if result.get("thumbnails") else None,
+            "title": best.get("title"),
+            "link": best.get("link"),
+            "vidid": best.get("id"),
+            "duration_min": best.get("duration"),
+            "thumb": best["thumbnails"][0]["url"].split("?")[0] if best.get("thumbnails") else None,
         }
-        vidid = result.get("id")
+        vidid = best.get("id")
         return track_details, vidid
+
+    async def slider(self, keyword: str, query_type: int, videoid: Union[bool, str] = None):
+        query = self.base + str(keyword) if videoid else keyword
+        if "&" in query:
+            query = query.split("&")[0]
+        a = VideosSearch(query, limit=SEARCH_LIMIT_EXTENDED)  # Untuk slider memang harus ambil banyak
+        result = (await a.next()).get("result", [])
+        if not result or query_type >= len(result):
+            return None, None, None, None
+        res = result[query_type]
+        title = res.get("title")
+        duration_min = res.get("duration")
+        vidid = res.get("id")
+        thumbnail = res["thumbnails"][0]["url"].split("?")[0] if res.get("thumbnails") else None
+        return title, duration_min, thumbnail, vidid
 
     async def formats(self, link: str, videoid: Union[bool, str] = None):
         if videoid:
@@ -404,22 +431,6 @@ class YouTubeAPI:
                 return formats_available, link
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, _extract_formats)
-
-    async def slider(self, link: str, query_type: int, videoid: Union[bool, str] = None):
-        if videoid:
-            link = self.base + str(link)
-        if "&" in link:
-            link = link.split("&")[0]
-        a = VideosSearch(link, limit=10)
-        result = (await a.next()).get("result", [])
-        if not result or query_type >= len(result):
-            return None, None, None, None
-        res = result[query_type]
-        title = res.get("title")
-        duration_min = res.get("duration")
-        vidid = res.get("id")
-        thumbnail = res["thumbnails"][0]["url"].split("?")[0] if res.get("thumbnails") else None
-        return title, duration_min, thumbnail, vidid
 
     async def download(
         self,
