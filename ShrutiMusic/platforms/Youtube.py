@@ -413,7 +413,6 @@ class YouTubeAPI:
             self.logger.error(f"[QUERY TRACK] No result for {link}")
             return {}, None
         result = resultdata[0]
-        # PATCHED: Ensure all fields are always strings and safe
         title = result.get("title") or ""
         link_val = result.get("link") or ""
         vidid = result.get("id") or ""
@@ -444,7 +443,7 @@ class YouTubeAPI:
         ytdl_opts = {"quiet": True, "cookiefile": cookie_file}
         def _extract_formats():
             try:
-                ydl = yt_dlp.YoutubeDL(ytdl_opts)
+                ydl = yt_dlp.YoutubeDL(ydl_opts)
                 with ydl:
                     formats_available = []
                     r = ydl.extract_info(link, download=False)
