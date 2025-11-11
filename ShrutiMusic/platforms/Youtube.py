@@ -311,10 +311,14 @@ class YouTubeAPI:
             self.logger.error(f"❌ [QUERY] No result found for {link}")
             return (None, None, 0, None, None)
         result = resultdata[0]
-        title = result.get("title")
-        duration_min = result.get("duration")
-        thumbnail = result["thumbnails"][0]["url"].split("?")[0] if result.get("thumbnails") else None
-        vidid = result.get("id")
+        title = result.get("title") or ""
+        duration_min = result.get("duration") or ""
+        thumbnails = result.get("thumbnails")
+        if isinstance(thumbnails, list) and thumbnails and "url" in thumbnails[0]:
+            thumbnail = thumbnails[0]["url"].split("?")[0]
+        else:
+            thumbnail = "https://i.ibb.co/CBQpg6L/music.png"
+        vidid = result.get("id") or ""
         duration_sec = int(time_to_seconds(duration_min)) if duration_min else 0
         return title, duration_min, duration_sec, thumbnail, vidid
 
@@ -329,7 +333,7 @@ class YouTubeAPI:
         except Exception as e:
             self.logger.error(f"[QUERY TITLE] Failed for {link}: {e}")
             return None
-        return resultdata[0]["title"] if resultdata else None
+        return resultdata[0].get("title") or "" if resultdata else ""
 
     async def duration(self, link: str, videoid: Union[bool, str] = None):
         if videoid:
@@ -342,7 +346,7 @@ class YouTubeAPI:
         except Exception as e:
             self.logger.error(f"[QUERY DURATION] Failed for {link}: {e}")
             return None
-        return resultdata[0]["duration"] if resultdata else None
+        return resultdata[0].get("duration") or "" if resultdata else ""
 
     async def thumbnail(self, link: str, videoid: Union[bool, str] = None):
         if videoid:
@@ -355,7 +359,11 @@ class YouTubeAPI:
         except Exception as e:
             self.logger.error(f"[QUERY THUMB] Failed for {link}: {e}")
             return None
-        return resultdata[0]["thumbnails"][0]["url"].split("?")[0] if resultdata else None
+        thumbnails = resultdata[0].get("thumbnails") if resultdata else None
+        if isinstance(thumbnails, list) and thumbnails and "url" in thumbnails[0]:
+            return thumbnails[0]["url"].split("?")[0]
+        else:
+            return "https://i.ibb.co/CBQpg6L/music.png"
 
     async def video(self, link: str, videoid: Union[bool, str] = None):
         if videoid:
@@ -405,14 +413,23 @@ class YouTubeAPI:
             self.logger.error(f"[QUERY TRACK] No result for {link}")
             return {}, None
         result = resultdata[0]
+        # PATCHED: Ensure all fields are always strings and safe
+        title = result.get("title") or ""
+        link_val = result.get("link") or ""
+        vidid = result.get("id") or ""
+        duration_min = result.get("duration") or ""
+        thumbnails = result.get("thumbnails")
+        if isinstance(thumbnails, list) and thumbnails and "url" in thumbnails[0]:
+            thumbnail = thumbnails[0]["url"].split("?")[0]
+        else:
+            thumbnail = "https://i.ibb.co/CBQpg6L/music.png" # fallback image
         track_details = {
-            "title": result.get("title"),
-            "link": result.get("link"),
-            "vidid": result.get("id"),
-            "duration_min": result.get("duration"),
-            "thumb": result["thumbnails"][0]["url"].split("?")[0] if result.get("thumbnails") else None,
+            "title": title,
+            "link": link_val,
+            "vidid": vidid,
+            "duration_min": duration_min,
+            "thumb": thumbnail,
         }
-        vidid = result.get("id")
         return track_details, vidid
 
     async def formats(self, link: str, videoid: Union[bool, str] = None):
@@ -468,10 +485,14 @@ class YouTubeAPI:
             self.logger.error(f"[QUERY SLIDER] No result for {link} query_type={query_type}")
             return None, None, None, None
         res = result[query_type]
-        title = res.get("title")
-        duration_min = res.get("duration")
-        vidid = res.get("id")
-        thumbnail = res["thumbnails"][0]["url"].split("?")[0] if res.get("thumbnails") else None
+        title = res.get("title") or ""
+        duration_min = res.get("duration") or ""
+        vidid = res.get("id") or ""
+        thumbnails = res.get("thumbnails")
+        if isinstance(thumbnails, list) and thumbnails and "url" in thumbnails[0]:
+            thumbnail = thumbnails[0]["url"].split("?")[0]
+        else:
+            thumbnail = "https://i.ibb.co/CBQpg6L/music.png"
         return title, duration_min, thumbnail, vidid
 
     async def download(
