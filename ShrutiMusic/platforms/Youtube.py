@@ -274,225 +274,304 @@ class YouTubeAPI:
         self.reg = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
         self.logger = LOGGER("ShrutiMusic/platforms/Youtube.py")
 
+    def is_youtube_query_valid(self, link: str) -> bool:
+        if not link or not isinstance(link, str):
+            return False
+        YOUTUBE_ID_REGEX = r'^[a-zA-Z0-9_-]{11}$'
+        return ("youtu" in link) or bool(re.match(YOUTUBE_ID_REGEX, link))
+
     async def exists(self, link: str, videoid: Union[bool, str] = None):
-        if videoid:
-            link = self.base + str(link)
-        return bool(re.search(self.regex, link))
+        try:
+            if videoid:
+                link = self.base + str(link)
+            if not self.is_youtube_query_valid(link):
+                return False
+            return bool(re.search(self.regex, link))
+        except Exception as e:
+            self.logger.error(f"[EXISTS] Error: {e}")
+            return False
 
     async def url(self, message_1: Message) -> Union[str, None]:
-        messages = [message_1]
-        if getattr(message_1, 'reply_to_message', False):
-            messages.append(message_1.reply_to_message)
-        for message in messages:
-            if getattr(message, "entities", None):
-                for entity in message.entities:
-                    if entity.type == MessageEntityType.URL:
-                        text = getattr(message, "text", None) or getattr(message, "caption", None)
-                        if text:
-                            return text[entity.offset: entity.offset + entity.length]
-            if getattr(message, "caption_entities", None):
-                for entity in message.caption_entities:
-                    if entity.type == MessageEntityType.TEXT_LINK:
-                        return entity.url
-        return None
+        try:
+            messages = [message_1]
+            if getattr(message_1, 'reply_to_message', False):
+                messages.append(message_1.reply_to_message)
+            for message in messages:
+                if getattr(message, "entities", None):
+                    for entity in message.entities:
+                        if entity.type == MessageEntityType.URL:
+                            text = getattr(message, "text", None) or getattr(message, "caption", None)
+                            if text:
+                                return text[entity.offset: entity.offset + entity.length]
+                if getattr(message, "caption_entities", None):
+                    for entity in message.caption_entities:
+                        if entity.type == MessageEntityType.TEXT_LINK:
+                            return entity.url
+            return None
+        except Exception as e:
+            self.logger.error(f"[URL] Error: {e}")
+            return None
 
     async def details(self, link: str, videoid: Union[bool, str] = None):
-        if videoid:
-            link = self.base + str(link)
-        if "&" in link:
-            link = link.split("&")[0]
         try:
-            results = VideosSearch(link, limit=1)
-            resultdata = (await results.next()).get("result", [])
-        except Exception as e:
-            self.logger.error(f"❌ [QUERY] Failed to fetch data for link {link}: {e}")
-            return (None, None, 0, None, None)
-        if not resultdata:
-            self.logger.error(f"❌ [QUERY] No result found for {link}")
-            return (None, None, 0, None, None)
-        result = resultdata[0]
-        title = result.get("title") or ""
-        duration_min = result.get("duration") or ""
-        thumbnails = result.get("thumbnails")
-        if isinstance(thumbnails, list) and thumbnails and "url" in thumbnails[0]:
-            thumbnail = thumbnails[0]["url"].split("?")[0]
-        else:
+            if not self.is_youtube_query_valid(link):
+                self.logger.error(f"[DETAILS] Query tidak valid: {link}")
+                return (None, None, 0, None, None)
+            if videoid:
+                link = self.base + str(link)
+            if "&" in link:
+                link = link.split("&")[0]
+            try:
+                results = VideosSearch(link, limit=1)
+                resultdata = (await results.next()).get("result", [])
+            except Exception as e:
+                self.logger.error(f"[DETAILS] YoutubeSearch error: {e}")
+                return (None, None, 0, None, None)
+            if not resultdata or not isinstance(resultdata, list) or not resultdata[0]:
+                self.logger.error(f"[DETAILS] Tidak ada hasil: {link}")
+                return (None, None, 0, None, None)
+            result = resultdata[0]
+            title = result.get("title") or ""
+            duration_min = result.get("duration") or ""
+            thumbnails = result.get("thumbnails")
             thumbnail = "https://i.ibb.co/CBQpg6L/music.png"
-        vidid = result.get("id") or ""
-        duration_sec = int(time_to_seconds(duration_min)) if duration_min else 0
-        return title, duration_min, duration_sec, thumbnail, vidid
+            if isinstance(thumbnails, list) and thumbnails and "url" in thumbnails[0]:
+                thumbnail = thumbnails[0]["url"].split("?")[0]
+            vidid = result.get("id") or ""
+            try:
+                duration_sec = int(time_to_seconds(duration_min)) if duration_min else 0
+            except Exception:
+                duration_sec = 0
+            return title, duration_min, duration_sec, thumbnail, vidid
+        except Exception as e:
+            self.logger.error(f"[DETAILS] General error: {e}")
+            return (None, None, 0, None, None)
 
     async def title(self, link: str, videoid: Union[bool, str] = None):
-        if videoid:
-            link = self.base + str(link)
-        if "&" in link:
-            link = link.split("&")[0]
         try:
-            results = VideosSearch(link, limit=1)
-            resultdata = (await results.next()).get("result", [])
+            if not self.is_youtube_query_valid(link):
+                return ""
+            if videoid:
+                link = self.base + str(link)
+            if "&" in link:
+                link = link.split("&")[0]
+            try:
+                results = VideosSearch(link, limit=1)
+                resultdata = (await results.next()).get("result", [])
+            except Exception as e:
+                self.logger.error(f"[TITLE] YoutubeSearch error: {e}")
+                return ""
+            return resultdata[0].get("title") or "" if resultdata else ""
         except Exception as e:
-            self.logger.error(f"[QUERY TITLE] Failed for {link}: {e}")
-            return None
-        return resultdata[0].get("title") or "" if resultdata else ""
+            self.logger.error(f"[TITLE] General error: {e}")
+            return ""
 
     async def duration(self, link: str, videoid: Union[bool, str] = None):
-        if videoid:
-            link = self.base + str(link)
-        if "&" in link:
-            link = link.split("&")[0]
         try:
-            results = VideosSearch(link, limit=1)
-            resultdata = (await results.next()).get("result", [])
+            if not self.is_youtube_query_valid(link):
+                return ""
+            if videoid:
+                link = self.base + str(link)
+            if "&" in link:
+                link = link.split("&")[0]
+            try:
+                results = VideosSearch(link, limit=1)
+                resultdata = (await results.next()).get("result", [])
+            except Exception as e:
+                self.logger.error(f"[DURATION] YoutubeSearch error: {e}")
+                return ""
+            return resultdata[0].get("duration") or "" if resultdata else ""
         except Exception as e:
-            self.logger.error(f"[QUERY DURATION] Failed for {link}: {e}")
-            return None
-        return resultdata[0].get("duration") or "" if resultdata else ""
+            self.logger.error(f"[DURATION] General error: {e}")
+            return ""
 
     async def thumbnail(self, link: str, videoid: Union[bool, str] = None):
-        if videoid:
-            link = self.base + str(link)
-        if "&" in link:
-            link = link.split("&")[0]
         try:
-            results = VideosSearch(link, limit=1)
-            resultdata = (await results.next()).get("result", [])
+            if not self.is_youtube_query_valid(link):
+                return "https://i.ibb.co/CBQpg6L/music.png"
+            if videoid:
+                link = self.base + str(link)
+            if "&" in link:
+                link = link.split("&")[0]
+            try:
+                results = VideosSearch(link, limit=1)
+                resultdata = (await results.next()).get("result", [])
+            except Exception as e:
+                self.logger.error(f"[THUMB] YoutubeSearch error: {e}")
+                return "https://i.ibb.co/CBQpg6L/music.png"
+            thumbnails = resultdata[0].get("thumbnails") if resultdata else None
+            if isinstance(thumbnails, list) and thumbnails and "url" in thumbnails[0]:
+                return thumbnails[0]["url"].split("?")[0]
+            else:
+                return "https://i.ibb.co/CBQpg6L/music.png"
         except Exception as e:
-            self.logger.error(f"[QUERY THUMB] Failed for {link}: {e}")
-            return None
-        thumbnails = resultdata[0].get("thumbnails") if resultdata else None
-        if isinstance(thumbnails, list) and thumbnails and "url" in thumbnails[0]:
-            return thumbnails[0]["url"].split("?")[0]
-        else:
+            self.logger.error(f"[THUMB] General error: {e}")
             return "https://i.ibb.co/CBQpg6L/music.png"
 
     async def video(self, link: str, videoid: Union[bool, str] = None):
-        if videoid:
-            link = self.base + str(link)
-        if "&" in link:
-            link = link.split("&")[0]
         try:
-            downloaded_file = await download_video(link)
-            if downloaded_file:
-                return 1, downloaded_file
-            else:
-                return 0, "Video download failed"
+            if not self.is_youtube_query_valid(link):
+                return 0, "Invalid youtube link"
+            if videoid:
+                link = self.base + str(link)
+            if "&" in link:
+                link = link.split("&")[0]
+            try:
+                downloaded_file = await download_video(link)
+                if downloaded_file:
+                    return 1, downloaded_file
+                else:
+                    return 0, "Video download failed"
+            except Exception as e:
+                self.logger.error(f"[VIDEO] Download error: {e}")
+                return 0, f"Video download error: {e}"
         except Exception as e:
-            self.logger.error(f"[QUERY VIDEO] Download error: {e}")
-            return 0, f"Video download error: {e}"
+            self.logger.error(f"[VIDEO] General error: {e}")
+            return 0, f"Video general error {e}"
 
     async def playlist(self, link, limit, user_id, videoid: Union[bool, str] = None):
-        if videoid:
-            link = self.listbase + str(link)
-        if "&" in link:
-            link = link.split("&")[0]
-        cookie_file = cookie_txt_file()
-        if not cookie_file:
-            self.logger.error("[QUERY PLAYLIST] No cookies found.")
-            return []
         try:
-            playlist_raw = await shell_cmd(
-                f"yt-dlp -i --get-id --flat-playlist --cookies {cookie_file} --playlist-end {limit} --skip-download {link}"
-            )
+            if not self.is_youtube_query_valid(link):
+                self.logger.error("[PLAYLIST] Query tidak valid.")
+                return []
+            if videoid:
+                link = self.listbase + str(link)
+            if "&" in link:
+                link = link.split("&")[0]
+            cookie_file = cookie_txt_file()
+            if not cookie_file:
+                self.logger.error("[PLAYLIST] No cookies found.")
+                return []
+            try:
+                playlist_raw = await shell_cmd(
+                    f"yt-dlp -i --get-id --flat-playlist --cookies {cookie_file} --playlist-end {limit} --skip-download {link}"
+                )
+            except Exception as e:
+                self.logger.error(f"[PLAYLIST] yt-dlp error: {e}")
+                return []
+            return [key.strip() for key in playlist_raw.split("\n") if key.strip()]
         except Exception as e:
-            self.logger.error(f"[QUERY PLAYLIST] yt-dlp error: {e}")
+            self.logger.error(f"[PLAYLIST] General error: {e}")
             return []
-        return [key.strip() for key in playlist_raw.split("\n") if key.strip()]
 
     async def track(self, link: str, videoid: Union[bool, str] = None):
-        if videoid:
-            link = self.base + str(link)
-        if "&" in link:
-            link = link.split("&")[0]
         try:
-            results = VideosSearch(link, limit=1)
-            resultdata = (await results.next()).get("result", [])
+            if not self.is_youtube_query_valid(link):
+                self.logger.error(f"[QUERY TRACK] Query tidak valid: {link}")
+                return {}, None
+            if videoid:
+                link = self.base + str(link)
+            if "&" in link:
+                link = link.split("&")[0]
+            try:
+                results = VideosSearch(link, limit=1)
+                resp = await results.next()
+                resultdata = resp.get("result", [])
+            except Exception as e:
+                self.logger.error(f"[QUERY TRACK] Exception: {e}")
+                return {}, None
+            if not resultdata or not isinstance(resultdata, list):
+                self.logger.error(f"[QUERY TRACK] Tidak ada hasil: {link}")
+                return {}, None
+            result = resultdata[0]
+            title = result.get("title") or ""
+            link_val = result.get("link") or ""
+            vidid = result.get("id") or ""
+            duration_min = result.get("duration") or ""
+            thumbnails = result.get("thumbnails")
+            if (isinstance(thumbnails, list) and thumbnails and isinstance(thumbnails[0], dict) 
+                and "url" in thumbnails[0] and thumbnails[0]["url"]):
+                thumbnail = thumbnails[0]["url"].split("?")[0]
+            else:
+                thumbnail = "https://i.ibb.co/CBQpg6L/music.png"
+            track_details = {
+                "title": title,
+                "link": link_val,
+                "vidid": vidid,
+                "duration_min": duration_min,
+                "thumb": thumbnail,
+            }
+            return track_details, vidid
         except Exception as e:
-            self.logger.error(f"[QUERY TRACK] Failed for {link}: {e}")
+            self.logger.error(f"[QUERY TRACK] General error: {e}")
             return {}, None
-        if not resultdata:
-            self.logger.error(f"[QUERY TRACK] No result for {link}")
-            return {}, None
-        result = resultdata[0]
-        title = result.get("title") or ""
-        link_val = result.get("link") or ""
-        vidid = result.get("id") or ""
-        duration_min = result.get("duration") or ""
-        thumbnails = result.get("thumbnails")
-        if isinstance(thumbnails, list) and thumbnails and "url" in thumbnails[0]:
-            thumbnail = thumbnails[0]["url"].split("?")[0]
-        else:
-            thumbnail = "https://i.ibb.co/CBQpg6L/music.png" # fallback image
-        track_details = {
-            "title": title,
-            "link": link_val,
-            "vidid": vidid,
-            "duration_min": duration_min,
-            "thumb": thumbnail,
-        }
-        return track_details, vidid
 
     async def formats(self, link: str, videoid: Union[bool, str] = None):
-        if videoid:
-            link = self.base + str(link)
-        if "&" in link:
-            link = link.split("&")[0]
-        cookie_file = cookie_txt_file()
-        if not cookie_file:
-            self.logger.error("[QUERY FORMATS] No cookies found.")
-            return [], link
-        ytdl_opts = {"quiet": True, "cookiefile": cookie_file}
-        def _extract_formats():
-            try:
-                ydl = yt_dlp.YoutubeDL(ydl_opts)
-                with ydl:
-                    formats_available = []
-                    r = ydl.extract_info(link, download=False)
-                    for format in r.get("formats", []):
-                        try:
-                            if "dash" not in str(format.get("format", "")).lower():
-                                formats_available.append(
-                                    {
-                                        "format": format.get("format"),
-                                        "filesize": format.get("filesize"),
-                                        "format_id": format.get("format_id"),
-                                        "ext": format.get("ext"),
-                                        "format_note": format.get("format_note"),
-                                        "yturl": link,
-                                    }
-                                )
-                        except Exception:
-                            continue
-                    return formats_available, link
-            except Exception as e:
-                self.logger.error(f"[QUERY FORMATS] yt-dlp error: {e}")
+        try:
+            if not self.is_youtube_query_valid(link):
+                self.logger.error("[FORMATS] Query tidak valid.")
                 return [], link
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(None, _extract_formats)
+            if videoid:
+                link = self.base + str(link)
+            if "&" in link:
+                link = link.split("&")[0]
+            cookie_file = cookie_txt_file()
+            if not cookie_file:
+                self.logger.error("[FORMATS] No cookies found.")
+                return [], link
+            ytdl_opts = {"quiet": True, "cookiefile": cookie_file}
+            def _extract_formats():
+                try:
+                    ydl = yt_dlp.YoutubeDL(ytdl_opts)
+                    with ydl:
+                        formats_available = []
+                        r = ydl.extract_info(link, download=False)
+                        for format in r.get("formats", []):
+                            try:
+                                if "dash" not in str(format.get("format", "")).lower():
+                                    formats_available.append(
+                                        {
+                                            "format": format.get("format"),
+                                            "filesize": format.get("filesize"),
+                                            "format_id": format.get("format_id"),
+                                            "ext": format.get("ext"),
+                                            "format_note": format.get("format_note"),
+                                            "yturl": link,
+                                        }
+                                    )
+                            except Exception:
+                                continue
+                        return formats_available, link
+                except Exception as e:
+                    self.logger.error(f"[FORMATS] yt-dlp error: {e}")
+                    return [], link
+            loop = asyncio.get_running_loop()
+            return await loop.run_in_executor(None, _extract_formats)
+        except Exception as e:
+            self.logger.error(f"[FORMATS] General error: {e}")
+            return [], link
 
     async def slider(self, link: str, query_type: int, videoid: Union[bool, str] = None):
-        if videoid:
-            link = self.base + str(link)
-        if "&" in link:
-            link = link.split("&")[0]
         try:
-            a = VideosSearch(link, limit=10)
-            result = (await a.next()).get("result", [])
+            if not self.is_youtube_query_valid(link):
+                self.logger.error(f"[SLIDER] Query tidak valid: {link}")
+                return None, None, None, None
+            if videoid:
+                link = self.base + str(link)
+            if "&" in link:
+                link = link.split("&")[0]
+            try:
+                a = VideosSearch(link, limit=10)
+                result = (await a.next()).get("result", [])
+            except Exception as e:
+                self.logger.error(f"[SLIDER] Search failed for {link}: {e}")
+                return None, None, None, None
+            if not result or query_type >= len(result):
+                self.logger.error(f"[SLIDER] No result for {link} query_type={query_type}")
+                return None, None, None, None
+            res = result[query_type]
+            title = res.get("title") or ""
+            duration_min = res.get("duration") or ""
+            vidid = res.get("id") or ""
+            thumbnails = res.get("thumbnails")
+            if isinstance(thumbnails, list) and thumbnails and "url" in thumbnails[0]:
+                thumbnail = thumbnails[0]["url"].split("?")[0]
+            else:
+                thumbnail = "https://i.ibb.co/CBQpg6L/music.png"
+            return title, duration_min, thumbnail, vidid
         except Exception as e:
-            self.logger.error(f"[QUERY SLIDER] Search failed for {link}: {e}")
+            self.logger.error(f"[SLIDER] General error: {e}")
             return None, None, None, None
-        if not result or query_type >= len(result):
-            self.logger.error(f"[QUERY SLIDER] No result for {link} query_type={query_type}")
-            return None, None, None, None
-        res = result[query_type]
-        title = res.get("title") or ""
-        duration_min = res.get("duration") or ""
-        vidid = res.get("id") or ""
-        thumbnails = res.get("thumbnails")
-        if isinstance(thumbnails, list) and thumbnails and "url" in thumbnails[0]:
-            thumbnail = thumbnails[0]["url"].split("?")[0]
-        else:
-            thumbnail = "https://i.ibb.co/CBQpg6L/music.png"
-        return title, duration_min, thumbnail, vidid
 
     async def download(
         self,
@@ -505,9 +584,14 @@ class YouTubeAPI:
         format_id: Union[bool, str] = None,
         title: Union[bool, str] = None,
     ) -> str:
-        if videoid:
-            link = self.base + str(link)
         try:
+            if not self.is_youtube_query_valid(link):
+                self.logger.error("[DOWNLOAD] Query tidak valid.")
+                return None, False
+            if videoid:
+                link = self.base + str(link)
+            if "&" in link:
+                link = link.split("&")[0]
             if songvideo:
                 downloaded_file = await download_video(link)
                 if downloaded_file:
@@ -533,5 +617,5 @@ class YouTubeAPI:
                 else:
                     return None, False
         except Exception as e:
-            self.logger.error(f"Download failed: {e}")
+            self.logger.error(f"[DOWNLOAD] General error: {e}")
             return None, False
