@@ -26,7 +26,6 @@ spotipy
 tgcrypto
 telegraph
 unidecode
-uvloop
 
 # --- Hanya salah satu youtube-search/YouTubeSearchPython yang boleh, pakai versi terbaru:
 youtubesearchpython
@@ -39,3 +38,4 @@ git+https://github.com/yt-dlp/yt-dlp.git
 # 🔗 GitHub : https://github.com/NoxxOP/ShrutiMusic
 # 📢 Telegram Channel : https://t.me/ShrutiBots
 # ===========================================
+
