@@ -143,39 +143,6 @@ async def get_telegram_file(telegram_link: str, video_id: str, file_type: str) -
         return None
 
 
-def _is_youtube_url(query: str) -> bool:
-    query = str(query)
-    return "youtube.com" in query or "youtu.be" in query
-
-def _is_video_id(query: str) -> bool:
-    query = str(query).strip()
-    return bool(re.fullmatch(r"[0-9A-Za-z_-]{11}", query))
-
-def _get_youtube_id_from_url(url: str) -> str:
-    # prioritaskan ambil video id dari url
-    patterns = [
-        r"v=([0-9A-Za-z_-]{11})",
-        r"youtu.be/([0-9A-Za-z_-]{11})",
-        r"/embed/([0-9A-Za-z_-]{11})",
-        r"shorts/([0-9A-Za-z_-]{11})"
-    ]
-    for pat in patterns:
-        match = re.search(pat, url)
-        if match:
-            return match.group(1)
-    return url  # fallback
-
-def _yt_dlp_info(video_param: str):
-    """video_param: video id atau url"""
-    try:
-        with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
-            info = ydl.extract_info(video_param, download=False)
-        return info
-    except Exception as e:
-        print(f"yt_dlp exception: {e}")
-        return None
-
-
 def _extract_youtube_id(url: str) -> str:
     """
     Extract a YouTube video id from a variety of URL formats.
@@ -386,75 +353,19 @@ async def shell_cmd(cmd: str) -> str:
     return out.decode("utf-8", errors="ignore")
 
 
-async def get_video_details(query: str):
-    """
-    Return: dict {
-        'title', 'duration', 'id', 'thumbnail', 'link'
-    } or error msg
-    """
-    data = {}
-    query = query.strip()
-    prefer_dlp = False
-    if _is_youtube_url(query):
-        vid = _get_youtube_id_from_url(query)
-        prefer_dlp = True
-    elif _is_video_id(query):
-        vid = query
-        prefer_dlp = True
-    else:
-        vid = query
+def _is_youtube_id_or_url(query: str) -> bool:
+    # If query is an 11-char ID or contains "youtube.com" or "youtu.be"
+    return (re.match(r"^[0-9A-Za-z_-]{11}$", query)
+            or "youtube.com" in query or "youtu.be" in query)
 
-    # Langsung gunakan yt_dlp jika prefer_dlp True
-    if prefer_dlp:
-        info = await asyncio.get_event_loop().run_in_executor(None, _yt_dlp_info, vid)
-        if info and info.get("title"):
-            data['title'] = info.get('title')
-            data['duration'] = info.get('duration')
-            data['id'] = info.get('id')
-            data['thumbnail'] = info.get('thumbnail')
-            data['link'] = f"https://www.youtube.com/watch?v={info.get('id')}"
-            return data
-        # fallback VideosSearch jika tidak ketemu pakai yt_dlp:
-        try:
-            search = VideosSearch(vid, limit=1)
-            result = (await search.next()).get("result", [])
-            if result:
-                r = result[0]
-                data['title'] = r['title']
-                data['duration'] = r.get('duration')  # bisa jadi None
-                data['id'] = r['id']
-                data['thumbnail'] = r['thumbnails'][0]['url'].split("?")[0] if r.get('thumbnails') else None
-                data['link'] = r.get('link')
-                return data
-        except Exception as e:
-            pass
-        return {"error": "Judul tidak ditemukan. Pastikan link/ID benar."}
 
-    # Jika bukan id/url, coba VideosSearch keyword dulu
+def _yt_dlp_info(video_id: str):
     try:
-        search = VideosSearch(vid, limit=1)
-        result = (await search.next()).get("result", [])
-        if result:
-            r = result[0]
-            data['title'] = r['title']
-            data['duration'] = r.get('duration')
-            data['id'] = r['id']
-            data['thumbnail'] = r['thumbnails'][0]['url'].split("?")[0] if r.get('thumbnails') else None
-            data['link'] = r.get('link')
-            return data
-    except Exception as e:
-        pass
-    # Fallback, coba yt_dlp dari query
-    info = await asyncio.get_event_loop().run_in_executor(None, _yt_dlp_info, query)
-    if info and info.get("title"):
-        data['title'] = info.get('title')
-        data['duration'] = info.get('duration')
-        data['id'] = info.get('id')
-        data['thumbnail'] = info.get('thumbnail')
-        data['link'] = f"https://www.youtube.com/watch?v={info.get('id')}"
-        return data
-
-    return {"error": "Judul tidak ditemukan. Cek koneksi dan kata kunci Anda."}
+        with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
+            info = ydl.extract_info(video_id, download=False)
+        return info
+    except Exception:
+        return None
 
 
 class YouTubeAPI:
@@ -489,44 +400,119 @@ class YouTubeAPI:
         return None
 
     async def details(self, link: str, videoid: Union[bool, str] = None) -> Tuple[Optional[str], Optional[str], int, Optional[str], Optional[str]]:
-        info = await get_video_details(link)
-        if "error" in info:
-            return None, None, 0, None, None
-        title = info.get("title")
-        duration_sec = info.get("duration")
-        # Support for both time string and int (yt_dlp returns int detik, VideosSearch string MM:SS)
-        if isinstance(duration_sec, str):
-            duration_min = duration_sec
-            try:
-                duration_sec_int = int(time_to_seconds(duration_sec))
-            except Exception:
-                duration_sec_int = 0
-        else:
-            duration_min = str(duration_sec // 60) + ":" + str(duration_sec % 60).zfill(2) if duration_sec else None
-            duration_sec_int = duration_sec or 0
-        thumb = info.get("thumbnail")
-        vidid = info.get("id")
-        return title, duration_min, duration_sec_int, thumb, vidid
+        # Perbaikan: deteksi jika link adalah ID/URL, dan fallback ke yt_dlp kalau search gagal.
+        if videoid:
+            link = self.base + str(link)
+        original = link
+        if "&" in link:
+            link = link.split("&")[0]
+        video_code = _extract_youtube_id(link)
+        search_query = video_code if not _is_youtube_id_or_url(link) else link
+        use_search = not _is_youtube_id_or_url(link)
+        try:
+            if use_search:
+                results = VideosSearch(search_query, limit=1)
+            else:
+                results = VideosSearch(video_code, limit=1)
+            resultdata = (await results.next()).get("result", [])
+            if resultdata:
+                result = resultdata[0]
+                title = result.get("title")
+                duration_min = result.get("duration")
+                thumbnail = result["thumbnails"][0]["url"].split("?")[0] if result.get("thumbnails") else None
+                vidid = result.get("id")
+                duration_sec = int(time_to_seconds(duration_min)) if duration_min else 0
+                return title, duration_min, duration_sec, thumbnail, vidid
+        except Exception:
+            pass
+        # Fallback jika gagal dengan VideosSearch
+        info = await asyncio.get_event_loop().run_in_executor(None, _yt_dlp_info, video_code)
+        if info:
+            title = info.get("title")
+            duration_sec = info.get("duration") or 0
+            duration_min = str(duration_sec//60) + ':' + "{:02d}".format(duration_sec%60) if duration_sec else None
+            thumbnail = info.get("thumbnail")
+            vidid = info.get("id")
+            return title, duration_min, duration_sec, thumbnail, vidid
+        return None, None, 0, None, None
 
     async def title(self, link: str, videoid: Union[bool, str] = None) -> Optional[str]:
-        info = await get_video_details(link)
-        return info.get("title") if "title" in info else None
+        if videoid:
+            link = self.base + str(link)
+        original = link
+        if "&" in link:
+            link = link.split("&")[0]
+        video_code = _extract_youtube_id(link)
+        search_query = video_code if not _is_youtube_id_or_url(link) else link
+        use_search = not _is_youtube_id_or_url(link)
+        try:
+            if use_search:
+                results = VideosSearch(search_query, limit=1)
+            else:
+                results = VideosSearch(video_code, limit=1)
+            resultdata = (await results.next()).get("result", [])
+            if resultdata:
+                return resultdata[0].get("title")
+        except Exception:
+            pass
+        # fallback
+        info = await asyncio.get_event_loop().run_in_executor(None, _yt_dlp_info, video_code)
+        return info.get("title") if info else None
 
     async def duration(self, link: str, videoid: Union[bool, str] = None) -> Optional[str]:
-        info = await get_video_details(link)
-        d = info.get("duration") if "duration" in info else None
-        if d is not None:
-            if isinstance(d, str):
-                return d
+        if videoid:
+            link = self.base + str(link)
+        original = link
+        if "&" in link:
+            link = link.split("&")[0]
+        video_code = _extract_youtube_id(link)
+        search_query = video_code if not _is_youtube_id_or_url(link) else link
+        use_search = not _is_youtube_id_or_url(link)
+        try:
+            if use_search:
+                results = VideosSearch(search_query, limit=1)
             else:
-                return str(d // 60) + ":" + str(d % 60).zfill(2)
+                results = VideosSearch(video_code, limit=1)
+            resultdata = (await results.next()).get("result", [])
+            if resultdata:
+                return resultdata[0].get("duration")
+        except Exception:
+            pass
+        # fallback
+        info = await asyncio.get_event_loop().run_in_executor(None, _yt_dlp_info, video_code)
+        duration_sec = info.get("duration") if info else None
+        if duration_sec is not None:
+            return str(duration_sec // 60) + ':' + "{:02d}".format(duration_sec % 60)
         return None
 
     async def thumbnail(self, link: str, videoid: Union[bool, str] = None) -> Optional[str]:
-        info = await get_video_details(link)
-        return info.get("thumbnail") if "thumbnail" in info else None
+        if videoid:
+            link = self.base + str(link)
+        original = link
+        if "&" in link:
+            link = link.split("&")[0]
+        video_code = _extract_youtube_id(link)
+        search_query = video_code if not _is_youtube_id_or_url(link) else link
+        use_search = not _is_youtube_id_or_url(link)
+        try:
+            if use_search:
+                results = VideosSearch(search_query, limit=1)
+            else:
+                results = VideosSearch(video_code, limit=1)
+            resultdata = (await results.next()).get("result", [])
+            if resultdata:
+                return resultdata[0]["thumbnails"][0]["url"].split("?")[0] if resultdata[0].get("thumbnails") else None
+        except Exception:
+            pass
+        # fallback
+        info = await asyncio.get_event_loop().run_in_executor(None, _yt_dlp_info, video_code)
+        return info.get("thumbnail") if info else None
 
     async def video(self, link: str, videoid: Union[bool, str] = None) -> Tuple[int, Union[str, None]]:
+        if videoid:
+            link = self.base + str(link)
+        if "&" in link:
+            link = link.split("&")[0]
         try:
             downloaded_file = await download_video(link)
             if downloaded_file:
@@ -550,11 +536,45 @@ class YouTubeAPI:
         return [key.strip() for key in playlist_raw.split("\n") if key.strip()]
 
     async def track(self, link: str, videoid: Union[bool, str] = None) -> Tuple[dict, Optional[str]]:
-        info = await get_video_details(link)
-        if "error" in info:
-            return {}, None
-        vidid = info.get("id")
-        return info, vidid
+        if videoid:
+            link = self.base + str(link)
+        if "&" in link:
+            link = link.split("&")[0]
+        video_code = _extract_youtube_id(link)
+        search_query = video_code if not _is_youtube_id_or_url(link) else link
+        use_search = not _is_youtube_id_or_url(link)
+        try:
+            if use_search:
+                results = VideosSearch(search_query, limit=1)
+            else:
+                results = VideosSearch(video_code, limit=1)
+            resultdata = (await results.next()).get("result", [])
+            if resultdata:
+                result = resultdata[0]
+                track_details = {
+                    "title": result.get("title"),
+                    "link": result.get("link"),
+                    "vidid": result.get("id"),
+                    "duration_min": result.get("duration"),
+                    "thumb": result["thumbnails"][0]["url"].split("?")[0] if result.get("thumbnails") else None,
+                }
+                vidid = result.get("id")
+                return track_details, vidid
+        except Exception:
+            pass
+        # fallback
+        info = await asyncio.get_event_loop().run_in_executor(None, _yt_dlp_info, video_code)
+        if info:
+            track_details = {
+                "title": info.get("title"),
+                "link": f"https://www.youtube.com/watch?v={info.get('id')}",
+                "vidid": info.get("id"),
+                "duration_min": str(info.get("duration")//60) + ':' + "{:02d}".format(info.get("duration")%60) if info.get("duration") else None,
+                "thumb": info.get("thumbnail"),
+            }
+            vidid = info.get("id")
+            return track_details, vidid
+        return {}, None
 
     async def formats(self, link: str, videoid: Union[bool, str] = None):
         if videoid:
@@ -590,10 +610,19 @@ class YouTubeAPI:
         return await loop.run_in_executor(None, _extract_formats)
 
     async def slider(self, link: str, query_type: int, videoid: Union[bool, str] = None):
-        info_list = []
-        search = VideosSearch(link, limit=10)
+        if videoid:
+            link = self.base + str(link)
+        if "&" in link:
+            link = link.split("&")[0]
+        video_code = _extract_youtube_id(link)
+        search_query = video_code if not _is_youtube_id_or_url(link) else link
+        use_search = not _is_youtube_id_or_url(link)
         try:
-            result = (await search.next()).get("result", [])
+            if use_search:
+                a = VideosSearch(search_query, limit=10)
+            else:
+                a = VideosSearch(video_code, limit=10)
+            result = (await a.next()).get("result", [])
             if not result or query_type >= len(result):
                 return None, None, None, None
             res = result[query_type]
