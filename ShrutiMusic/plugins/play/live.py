@@ -27,6 +27,7 @@ from ShrutiMusic.utils.channelplay import get_channeplayCB
 from ShrutiMusic.utils.decorators.language import languageCB
 from ShrutiMusic.utils.stream.stream import stream
 from config import BANNED_USERS
+from ..logging import LOGGER  # gunakan LOGGER jika tersedia di package
 
 
 @app.on_callback_query(filters.regex("LiveStream") & ~BANNED_USERS)
@@ -56,16 +57,66 @@ async def play_live_stream(client, CallbackQuery, _):
     )
     try:
         details, track_id = await YouTube.track(vidid, True)
-    except:
+    except Exception as e:
+        LOGGER(__name__).error(f"Failed to fetch track details for {vidid}: {e}")
         return await mystic.edit_text(_["play_3"])
-    ffplay = True if fplay == "f" else None
-    if not details["duration_min"]:
+
+    # Guard aman ketika metadata tidak lengkap.
+    try:
+        if not isinstance(details, dict):
+            details = details or {}
+        # Ambil duration_min bila tersedia, fallback ke duration (detik) lalu ubah ke menit.
+        duration_min = details.get("duration_min")
+        if duration_min is None:
+            # Coba beberapa kemungkinan field lain yang mungkin berisi durasi
+            duration = details.get("duration") or details.get("duration_seconds") or details.get("length")
+            if duration is not None:
+                try:
+                    # beberapa extractor mengembalikan string, pastikan ke int detik lalu ke menit
+                    duration_int = int(float(duration))
+                    duration_min = int(duration_int / 60)
+                except Exception:
+                    duration_min = 0
+            else:
+                # Tidak ada metadata durasi sama sekali -> anggap live/unknown
+                duration_min = 0
+
+        # Jika duration_min == 0, anggap live atau durasi tidak diketahui -> lanjutkan streaming live
+        if duration_min == 0:
+            LOGGER(__name__).info(f"Detected live/unknown-duration for vid {vidid} (details keys: {list(details.keys())})")
+            ffplay = True if fplay == "f" else None
+            try:
+                await stream(
+                    _,
+                    mystic,
+                    user_id,
+                    details,
+                    chat_id,
+                    user_name,
+                    CallbackQuery.message.chat.id,
+                    video,
+                    streamtype="live",
+                    forceplay=ffplay,
+                )
+            except Exception as e:
+                LOGGER(__name__).error(f"Error while starting live stream for {vidid}: {e}")
+                ex_type = type(e).__name__
+                err = e if ex_type == "AssistantErr" else _["general_2"].format(ex_type)
+                return await mystic.edit_text(err)
+        else:
+            # Jika ada durasi > 0, ini bukan live stream
+            return await mystic.edit_text("» ɴᴏᴛ ᴀ ʟɪᴠᴇ sᴛʀᴇᴀᴍ.")
+    except Exception as e:
+        # Jangan biarkan handler crash karena metadata tak terduga.
+        LOGGER(__name__).error(f"Unhandled error when processing track details for {vidid}: {e}")
+        # Fallback: anggap live dan coba lanjutkan
         try:
+            ffplay = True if fplay == "f" else None
             await stream(
                 _,
                 mystic,
                 user_id,
-                details,
+                details or {},
                 chat_id,
                 user_name,
                 CallbackQuery.message.chat.id,
@@ -73,13 +124,12 @@ async def play_live_stream(client, CallbackQuery, _):
                 streamtype="live",
                 forceplay=ffplay,
             )
-        except Exception as e:
-            print(f"Error: {e}")
-            ex_type = type(e).__name__
-            err = e if ex_type == "AssistantErr" else _["general_2"].format(ex_type)
+        except Exception as e2:
+            LOGGER(__name__).error(f"Fallback live stream attempt failed for {vidid}: {e2}")
+            ex_type = type(e2).__name__
+            err = e2 if ex_type == "AssistantErr" else _["general_2"].format(ex_type)
             return await mystic.edit_text(err)
-    else:
-        return await mystic.edit_text("» ɴᴏᴛ ᴀ ʟɪᴠᴇ sᴛʀᴇᴀᴍ.")
+
     await mystic.delete()
 
 
