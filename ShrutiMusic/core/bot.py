@@ -20,14 +20,23 @@
 # Email: badboy809075@gmail.com
 
 import asyncio
-import uvloop
 
-# Install uvloop policy first, then ensure there is an event loop set for the main thread.
-# This prevents RuntimeError: "There is no current event loop in thread 'MainThread'"
-# which occurs when libraries (like pyrogram.sync) call asyncio.get_event_loop() during import.
-uvloop.install()
+# Try to import and install uvloop if available.
+# If uvloop is not available, continue without raising an exception.
 try:
-    # If there is no current event loop this will raise RuntimeError on some setups.
+    import uvloop
+except ModuleNotFoundError:
+    uvloop = None
+else:
+    try:
+        uvloop.install()
+    except Exception:
+        # Jika install gagal, tetap lanjut tanpa menghentikan program
+        uvloop = None
+
+# Pastikan selalu ada event loop untuk thread utama.
+# Pada beberapa setup, asyncio.get_event_loop() dapat melempar RuntimeError.
+try:
     asyncio.get_event_loop()
 except RuntimeError:
     asyncio.set_event_loop(asyncio.new_event_loop())
