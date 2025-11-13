@@ -27,7 +27,14 @@ from ShrutiMusic.utils.channelplay import get_channeplayCB
 from ShrutiMusic.utils.decorators.language import languageCB
 from ShrutiMusic.utils.stream.stream import stream
 from config import BANNED_USERS
-from ..logging import LOGGER  # gunakan LOGGER jika tersedia di package
+
+# Import LOGGER dari package utama; beri fallback ke logging standar jika tidak ada.
+try:
+    from ShrutiMusic.logging import LOGGER
+except Exception:
+    import logging as _logging
+    def LOGGER(name):
+        return _logging.getLogger(name)
 
 
 @app.on_callback_query(filters.regex("LiveStream") & ~BANNED_USERS)
