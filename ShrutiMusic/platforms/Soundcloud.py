@@ -19,55 +19,53 @@
 # Contact for permissions:
 # Email: badboy809075@gmail.com
 
-
+import logging
 from os import path
 
 from yt_dlp import YoutubeDL
 
 from ShrutiMusic.utils.formatters import seconds_to_min
 
-
 class SoundAPI:
     def __init__(self):
         self.opts = {
             "outtmpl": "downloads/%(id)s.%(ext)s",
-            "format": "best",
+            "format": "bestaudio/best",
             "retries": 3,
             "nooverwrites": False,
             "continuedl": True,
         }
 
     async def valid(self, link: str):
-        if "soundcloud" in link:
-            return True
-        else:
-            return False
+        return "soundcloud" in str(link).lower()
 
     async def download(self, url):
         d = YoutubeDL(self.opts)
         try:
             info = d.extract_info(url)
-        except:
-            return False
+        except Exception as e:
+            logging.error(f"[SoundAPI.download] yt_dlp extract_info error: {e}")
+            return None
+        # Defensive: check all info keys
+        for key in ["id", "ext", "duration", "title", "uploader"]:
+            if key not in info:
+                logging.error(f"[SoundAPI.download] Missing info key: {key}")
+                return None
         xyz = path.join("downloads", f"{info['id']}.{info['ext']}")
-        duration_min = seconds_to_min(info["duration"])
+        duration_min = seconds_to_min(info["duration"]) if info["duration"] is not None else "0:00"
         track_details = {
-            "title": info["title"],
-            "duration_sec": info["duration"],
+            "title": info.get("title", "Unknown"),
+            "duration_sec": info.get("duration", 0),
             "duration_min": duration_min,
-            "uploader": info["uploader"],
+            "uploader": info.get("uploader", "Unknown"),
             "filepath": xyz,
         }
         return track_details, xyz
-
-
-# ©️ Copyright Reserved - @NoxxOP  Nand Yaduwanshi
 
 # ===========================================
 # ©️ 2025 Nand Yaduwanshi (aka @NoxxOP)
 # 🔗 GitHub : https://github.com/NoxxOP/ShrutiMusic
 # 📢 Telegram Channel : https://t.me/ShrutiBots
 # ===========================================
-
 
 # ❤️ Love From ShrutiBots 
