@@ -6,18 +6,6 @@
 # This code is the intellectual property of Nand Yaduwanshi.
 # You are not allowed to copy, modify, redistribute, or use this
 # code for commercial or personal projects without explicit permission.
-#
-# Allowed:
-# - Forking for personal learning
-# - Submitting improvements via pull requests
-#
-# Not Allowed:
-# - Claiming this code as your own
-# - Re-uploading without credit or permission
-# - Selling or using commercially
-#
-# Contact for permissions:
-# Email: badboy809075@gmail.com
 
 import random
 import string
@@ -205,6 +193,8 @@ async def play_commnd(
                         config.PLAYLIST_FETCH_LIMIT,
                         message.from_user.id,
                     )
+                    if not details:
+                        return await safe_edit(mystic, message, _["play_3"])
                 except:
                     return await safe_edit(mystic, message, _["play_3"])
                 streamtype = "playlist"
@@ -217,7 +207,10 @@ async def play_commnd(
                 cap = _["play_9"]
             else:
                 try:
-                    details, track_id = await YouTube.track(url)
+                    details_and_id = await YouTube.track(url)
+                    if not details_and_id or not isinstance(details_and_id, tuple) or not details_and_id[0]:
+                        return await safe_edit(mystic, message, _["play_3"])
+                    details, track_id = details_and_id
                 except:
                     return await safe_edit(mystic, message, _["play_3"])
                 streamtype = "youtube"
@@ -234,7 +227,10 @@ async def play_commnd(
                 )
             if "track" in url:
                 try:
-                    details, track_id = await Spotify.track(url)
+                    details_and_id = await Spotify.track(url)
+                    if not details_and_id or not isinstance(details_and_id, tuple) or not details_and_id[0]:
+                        return await safe_edit(mystic, message, _["play_3"])
+                    details, track_id = details_and_id
                 except:
                     return await safe_edit(mystic, message, _["play_3"])
                 streamtype = "youtube"
@@ -242,7 +238,10 @@ async def play_commnd(
                 cap = _["play_10"].format(details.get("title", "Unknown"), details.get("duration_min", "Unknown"))
             elif "playlist" in url:
                 try:
-                    details, plist_id = await Spotify.playlist(url)
+                    details_res = await Spotify.playlist(url)
+                    if not details_res or not isinstance(details_res, tuple) or not details_res[0]:
+                        return await safe_edit(mystic, message, _["play_3"])
+                    details, plist_id = details_res
                 except Exception:
                     return await safe_edit(mystic, message, _["play_3"])
                 streamtype = "playlist"
@@ -251,7 +250,10 @@ async def play_commnd(
                 cap = _["play_11"].format(app.mention, message.from_user.mention)
             elif "album" in url:
                 try:
-                    details, plist_id = await Spotify.album(url)
+                    details_res = await Spotify.album(url)
+                    if not details_res or not isinstance(details_res, tuple) or not details_res[0]:
+                        return await safe_edit(mystic, message, _["play_3"])
+                    details, plist_id = details_res
                 except:
                     return await safe_edit(mystic, message, _["play_3"])
                 streamtype = "playlist"
@@ -260,7 +262,10 @@ async def play_commnd(
                 cap = _["play_11"].format(app.mention, message.from_user.mention)
             elif "artist" in url:
                 try:
-                    details, plist_id = await Spotify.artist(url)
+                    details_res = await Spotify.artist(url)
+                    if not details_res or not isinstance(details_res, tuple) or not details_res[0]:
+                        return await safe_edit(mystic, message, _["play_3"])
+                    details, plist_id = details_res
                 except:
                     return await safe_edit(mystic, message, _["play_3"])
                 streamtype = "playlist"
@@ -272,7 +277,10 @@ async def play_commnd(
         elif await Apple.valid(url):
             if "album" in url:
                 try:
-                    details, track_id = await Apple.track(url)
+                    details_and_id = await Apple.track(url)
+                    if not details_and_id or not isinstance(details_and_id, tuple) or not details_and_id[0]:
+                        return await safe_edit(mystic, message, _["play_3"])
+                    details, track_id = details_and_id
                 except:
                     return await safe_edit(mystic, message, _["play_3"])
                 streamtype = "youtube"
@@ -281,7 +289,10 @@ async def play_commnd(
             elif "playlist" in url:
                 spotify = True
                 try:
-                    details, plist_id = await Apple.playlist(url)
+                    details_res = await Apple.playlist(url)
+                    if not details_res or not isinstance(details_res, tuple) or not details_res[0]:
+                        return await safe_edit(mystic, message, _["play_3"])
+                    details, plist_id = details_res
                 except:
                     return await safe_edit(mystic, message, _["play_3"])
                 streamtype = "playlist"
@@ -292,7 +303,10 @@ async def play_commnd(
                 return await safe_edit(mystic, message, _["play_3"])
         elif await Resso.valid(url):
             try:
-                details, track_id = await Resso.track(url)
+                details_and_id = await Resso.track(url)
+                if not details_and_id or not isinstance(details_and_id, tuple) or not details_and_id[0]:
+                    return await safe_edit(mystic, message, _["play_3"])
+                details, track_id = details_and_id
             except:
                 return await safe_edit(mystic, message, _["play_3"])
             streamtype = "youtube"
@@ -300,7 +314,10 @@ async def play_commnd(
             cap = _["play_10"].format(details.get("title", "Unknown"), details.get("duration_min", "Unknown"))
         elif await SoundCloud.valid(url):
             try:
-                details, track_path = await SoundCloud.download(url)
+                result = await SoundCloud.download(url)
+                if not result or not isinstance(result, tuple) or not result[0]:
+                    return await safe_edit(mystic, message, _["play_3"])
+                details, track_path = result
             except:
                 return await safe_edit(mystic, message, _["play_3"])
             duration_sec = details.get("duration_sec", 0)
@@ -372,7 +389,10 @@ async def play_commnd(
         if "-v" in query:
             query = query.replace("-v", "")
         try:
-            details, track_id = await YouTube.track(query)
+            details_and_id = await YouTube.track(query)
+            if not details_and_id or not isinstance(details_and_id, tuple) or not details_and_id[0]:
+                return await safe_edit(mystic, message, _["play_3"])
+            details, track_id = details_and_id
         except:
             return await safe_edit(mystic, message, _["play_3"])
         streamtype = "youtube"
@@ -512,7 +532,10 @@ async def play_music(client, CallbackQuery, _):
         _["play_2"].format(channel) if channel else _["play_1"]
     )
     try:
-        details, track_id = await YouTube.track(vidid, True)
+        details_and_id = await YouTube.track(vidid, True)
+        if not details_and_id or not isinstance(details_and_id, tuple) or not details_and_id[0]:
+            return await safe_edit(mystic, CallbackQuery.message, _["play_3"])
+        details, track_id = details_and_id
     except:
         return await safe_edit(mystic, CallbackQuery.message, _["play_3"])
     if details.get("duration_min"):
@@ -610,26 +633,40 @@ async def play_playlists_command(client, CallbackQuery, _):
                 CallbackQuery.from_user.id,
                 True,
             )
+            if not result:
+                return await safe_edit(mystic, CallbackQuery.message, _["play_3"])
         except:
             return await safe_edit(mystic, CallbackQuery.message, _["play_3"])
     if ptype == "spplay":
         try:
-            result, spotify_id = await Spotify.playlist(videoid)
+            result_res = await Spotify.playlist(videoid)
+            if not result_res or not isinstance(result_res, tuple) or not result_res[0]:
+                return await safe_edit(mystic, CallbackQuery.message, _["play_3"])
+            result, spotify_id = result_res
         except:
             return await safe_edit(mystic, CallbackQuery.message, _["play_3"])
     if ptype == "spalbum":
         try:
-            result, spotify_id = await Spotify.album(videoid)
+            result_res = await Spotify.album(videoid)
+            if not result_res or not isinstance(result_res, tuple) or not result_res[0]:
+                return await safe_edit(mystic, CallbackQuery.message, _["play_3"])
+            result, spotify_id = result_res
         except:
             return await safe_edit(mystic, CallbackQuery.message, _["play_3"])
     if ptype == "spartist":
         try:
-            result, spotify_id = await Spotify.artist(videoid)
+            result_res = await Spotify.artist(videoid)
+            if not result_res or not isinstance(result_res, tuple) or not result_res[0]:
+                return await safe_edit(mystic, CallbackQuery.message, _["play_3"])
+            result, spotify_id = result_res
         except:
             return await safe_edit(mystic, CallbackQuery.message, _["play_3"])
     if ptype == "apple":
         try:
-            result, apple_id = await Apple.playlist(videoid, True)
+            result_res = await Apple.playlist(videoid, True)
+            if not result_res or not isinstance(result_res, tuple) or not result_res[0]:
+                return await safe_edit(mystic, CallbackQuery.message, _["play_3"])
+            result, apple_id = result_res
         except:
             return await safe_edit(mystic, CallbackQuery.message, _["play_3"])
     try:
@@ -719,12 +756,7 @@ async def slider_queries(client, CallbackQuery, _):
             media=med, reply_markup=InlineKeyboardMarkup(buttons)
         )
 
-# ©️ Copyright Reserved - @NoxxOP  Nand Yaduwanshi
-
-# ===========================================
 # ©️ 2025 Nand Yaduwanshi (aka @NoxxOP)
 # 🔗 GitHub : https://github.com/NoxxOP/ShrutiMusic
 # 📢 Telegram Channel : https://t.me/ShrutiBots
-# ===========================================
-
 # ❤️ Love From ShrutiBots 
