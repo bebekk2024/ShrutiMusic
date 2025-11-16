@@ -3,41 +3,51 @@ import random
 import importlib
 import config
 
-# Query group import (relative import from package root)
-from ...utils.query_group import sangmata_group
+# Try to import sangmata_group from project's utils; fallback to default.
+try:
+    # prefer package-level utils.query_group
+    from ShrutiMusic.utils.query_group import sangmata_group  # type: ignore
+except Exception:
+    try:
+        # try relative import if package executed differently
+        from ..utils.query_group import sangmata_group  # type: ignore
+    except Exception:
+        sangmata_group = 50  # default handler group/order if module missing
 
 from ShrutiMusic import app, userbot
 from pyrogram import filters, raw
-from ShrutiMusic.utils.decorators import ONLY_ADMIN, ONLY_GROUP
 from pyrogram.types import Message
 
-"""
-SangMata plugin
-- Lokasi file: ShrutiMusic/plugins/sangmata.py
-- Perbaikan:
-  * Hapus ketergantungan ke simbol `dB` (sesuai permintaan).
-  * Tambahkan shim `db` yang mencoba memakai nama-nama umum dari
-    ShrutiMusic.utils.database, lalu fallback ke in-memory async store.
-  * Perbaikan import / duplikasi import.
-  * Konsisten menggunakan reply_text / edit_text agar pyrogram API jelas.
-"""
+# --- Decorator compatibility (ONLY_ADMIN / ONLY_GROUP) ---
+try:
+    from ShrutiMusic.utils.decorators import ONLY_ADMIN, ONLY_GROUP  # type: ignore
+except Exception:
+    # fallback no-op decorators (compatible with @DECORATOR and @DECORATOR())
+    def _noop_deco(*d_args, **d_kwargs):
+        if len(d_args) == 1 and callable(d_args[0]) and not d_kwargs:
+            func = d_args[0]
+            def wrapper(*args, **kwargs):
+                return func(*args, **kwargs)
+            return wrapper
+        def inner(func):
+            def wrapper(*args, **kwargs):
+                return func(*args, **kwargs)
+            return wrapper
+        return inner
+    ONLY_ADMIN = _noop_deco()
+    ONLY_GROUP = _noop_deco()
 
-# --- Database compatibility shim (tidak menggunakan simbol `dB`) ---
+# --- Database proxy (not using symbol `dB`) ---
 class _FallbackDB:
     def __init__(self):
-        # simple in-memory stores for users and vars
-        self._users = {}  # user_id -> {"depan": first, "belakang": last, "username": username}
-        self._vars = {}   # (chat_id, var_name) -> value
+        self._users = {}
+        self._vars = {}
 
     async def cek_userdata(self, user_id):
         return user_id in self._users
 
     async def add_userdata(self, user_id, first, last, username):
-        self._users[user_id] = {
-            "depan": first or "",
-            "belakang": last or "",
-            "username": username or "",
-        }
+        self._users[user_id] = {"depan": first or "", "belakang": last or "", "username": username or ""}
         return True
 
     async def get_userdata(self, user_id):
@@ -53,14 +63,21 @@ class _FallbackDB:
     async def remove_var(self, chat_id, name):
         return self._vars.pop((chat_id, name), None) is not None
 
+# try to import project's database module and wrap it, else fallback
+_db_mod = None
+try:
+    _db_mod = importlib.import_module("ShrutiMusic.utils.database")
+except Exception:
+    try:
+        _db_mod = importlib.import_module("..utils.database", package=__package__)
+    except Exception:
+        _db_mod = None
 
 class _DBProxy:
     def __init__(self, mod):
         self._mod = mod
-        self._fallback = _FallbackDB()
 
     async def _call(self, func, *args, **kwargs):
-        # call sync or async functions uniformly
         res = func(*args, **kwargs)
         if asyncio.iscoroutine(res):
             return await res
@@ -70,63 +87,39 @@ class _DBProxy:
         func = getattr(self._mod, "cek_userdata", None)
         if callable(func):
             return await self._call(func, user_id)
-        return await self._fallback.cek_userdata(user_id)
+        return await _FallbackDB().cek_userdata(user_id)
 
     async def add_userdata(self, user_id, first, last, username):
         func = getattr(self._mod, "add_userdata", None)
         if callable(func):
             return await self._call(func, user_id, first, last, username)
-        return await self._fallback.add_userdata(user_id, first, last, username)
+        return await _FallbackDB().add_userdata(user_id, first, last, username)
 
     async def get_userdata(self, user_id):
         func = getattr(self._mod, "get_userdata", None)
         if callable(func):
             return await self._call(func, user_id)
-        return await self._fallback.get_userdata(user_id)
+        return await _FallbackDB().get_userdata(user_id)
 
     async def get_var(self, chat_id, name):
         func = getattr(self._mod, "get_var", None)
         if callable(func):
             return await self._call(func, chat_id, name)
-        return await self._fallback.get_var(chat_id, name)
+        return await _FallbackDB().get_var(chat_id, name)
 
     async def set_var(self, chat_id, name, value):
         func = getattr(self._mod, "set_var", None)
         if callable(func):
             return await self._call(func, chat_id, name, value)
-        return await self._fallback.set_var(chat_id, name, value)
+        return await _FallbackDB().set_var(chat_id, name, value)
 
     async def remove_var(self, chat_id, name):
         func = getattr(self._mod, "remove_var", None)
         if callable(func):
             return await self._call(func, chat_id, name)
-        return await self._fallback.remove_var(chat_id, name)
+        return await _FallbackDB().remove_var(chat_id, name)
 
-
-# Try to import the project's database module (absolute then relative), otherwise use fallback.
-_db_module = None
-for mod_path in (
-    "ShrutiMusic.utils.database",
-    "ShrutiMusic.utils.database.__init__",
-    # relative (in-package) import path (works when executing as package)
-    "ShrutiMusic.utils.database",
-):
-    try:
-        _db_module = importlib.import_module(mod_path)
-        break
-    except Exception:
-        _db_module = None
-
-if _db_module is None:
-    # try relative import (when package executed differently)
-    try:
-        _db_module = importlib.import_module("..utils.database", package=__package__)
-    except Exception:
-        _db_module = None
-
-# instantiate proxy (will use fallback if _db_module is None or missing functions)
-db = _DBProxy(_db_module or _FallbackDB())
-# --- end shim ---
+db = _DBProxy(_db_mod or _FallbackDB())
 
 
 @app.on_message(
@@ -134,7 +127,6 @@ db = _DBProxy(_db_module or _FallbackDB())
     group=sangmata_group,
 )
 async def sang_mata(client: app.__class__, message: Message):
-    # Abaikan pesan dari sender_chat (anonymous channel)
     if message.sender_chat:
         return
 
@@ -146,7 +138,6 @@ async def sang_mata(client: app.__class__, message: Message):
     last = message.from_user.last_name or ""
     username = message.from_user.username or ""
 
-    # Simpan user pertama kali
     if not await db.cek_userdata(user_id):
         await db.add_userdata(user_id, first, last, username)
         return
@@ -159,7 +150,6 @@ async def sang_mata(client: app.__class__, message: Message):
     old_last = data.get("belakang", "")
     old_username = data.get("username", "")
 
-    # Jika grup dinonaktifkan SangMata pada chat ini, skip
     if await db.get_var(message.chat.id, "SICEPU"):
         return
 
@@ -183,8 +173,6 @@ async def sang_mata(client: app.__class__, message: Message):
         msg += f"<b>Pengguna : {message.from_user.mention} [<code>{user_id}</code>]</b>\n\n"
         msg += "\n".join(changes)
         await message.reply_text(msg, quote=True)
-
-        # Perbarui data user di database
         await db.add_userdata(user_id, first, last, username)
 
 
@@ -204,20 +192,17 @@ async def sangmata_cmd(client: app.__class__, message: Message):
             "Jika Anda ingin menonaktifkan, Anda dapat menggunakan perintah <code>/sangmata off</code>.</b>"
         )
     if state == "on":
-        # Jika var SICEPU ada berarti dinonaktifkan, jadi hapus untuk mengaktifkan
         if not await db.get_var(message.chat.id, "SICEPU"):
             return await message.reply_text(">**Sangmata sudah diaktifkan**")
         await db.remove_var(message.chat.id, "SICEPU")
         return await message.reply_text(">**Sangmata berhasil diaktifkan.**")
     else:
-        # Set var SICEPU untuk menonaktifkan
         if await db.get_var(message.chat.id, "SICEPU"):
             return await message.reply_text(">**Sangmata sudah dinonaktifkan**")
         await db.set_var(message.chat.id, "SICEPU", True)
         return await message.reply_text(">**Sangmata berhasil dinonaktifkan.**")
 
 
-# Perbaikan filter: config.BANNED_USERS di __main__ merupakan set, gunakan filters.user(...)
 @app.on_message(filters.command(["sg"]) & ~filters.user(config.BANNED_USERS))
 async def history(client: app.__class__, message: Message):
     reply = message.reply_to_message
@@ -239,7 +224,6 @@ async def history(client: app.__class__, message: Message):
     try:
         await babu.unblock_user(getbot)
     except Exception:
-        # Jika gagal unblock, lanjutkan — userbot mungkin sudah bisa kirim
         pass
     try:
         txt = await babu.send_message(getbot, user_id)
@@ -266,7 +250,6 @@ async def history(client: app.__class__, message: Message):
         user_info = await babu.resolve_peer(getbot)
         await babu.invoke(raw.functions.messages.DeleteHistory(peer=user_info, max_id=0, revoke=True))
     except Exception:
-        # Jika tidak bisa menghapus history, abaikan
         pass
 
 
