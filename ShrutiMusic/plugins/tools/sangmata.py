@@ -6,7 +6,7 @@ from ...utils.query_group import sangmata_group
 from ShrutiMusic import app, userbot
 from pyrogram import filters, raw
 from ShrutiMusic.utils.query_group import sangmata_group
-from ShrutiMusic.utils.database import dB
+from ShrutiMusic.utils.database import
 from ShrutiMusic.utils.decorators import ONLY_ADMIN, ONLY_GROUP
 from pyrogram.types import Message
 
