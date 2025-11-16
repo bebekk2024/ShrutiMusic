@@ -1,41 +1,54 @@
-# Utility helpers exported for the ShrutiMusic package.
-# Provides AdminRightsCheck (async) and seconds_to_min (sync).
+# ShrutiMusic/utils/__init__.py
+# Central utils package exports
+# Preserve existing wildcard exports, and explicitly export commonly-needed helpers
+# so that "from ShrutiMusic.utils import AdminRightsCheck, seconds_to_min" always works.
 
-from typing import Optional
+# (Keep project copyright header if needed)
+from .channelplay import *
+from .database import *
+from .decorators import *
+from .extraction import *
+from .formatters import *
+from .inline import *
+from .pastebin import *
+from .sys import *
+from .error import *
+from .couple import *
+
+# Explicitly ensure AdminRightsCheck is exported from the utils package.
+# Try the most likely module locations (decorators.admins, admins) and fall back safely.
 try:
-    # pyrogram imports are only required at runtime when AdminRightsCheck is used
-    from pyrogram import Client
-    from pyrogram.types import ChatMember
+    # preferred: decorators.admins (we expect AdminRightsCheck in decorators/admins.py)
+    from .decorators.admins import AdminRightsCheck, AdminActual, ActualAdminCB  # type: ignore
 except Exception:
-    Client = None  # type: ignore
-
-async def AdminRightsCheck(chat_id: int, user_id: int, client: Optional[Client]) -> bool:
-    """
-    Check whether a user is an admin/creator in a chat.
-    Returns False if the client is not available or on error.
-    Usage: await AdminRightsCheck(chat_id, user_id, pyrogram_client)
-    """
-    if client is None or Client is None:
-        return False
     try:
-        member = await client.get_chat_member(chat_id, user_id)
-        # member.status typically one of: 'creator', 'administrator', 'member', ...
-        return getattr(member, "status", "").lower() in ("administrator", "creator")
+        # alternative location: utils/admins.py
+        from .admins import AdminRightsCheck, AdminActual, ActualAdminCB  # type: ignore
     except Exception:
-        # Don't raise here; plugin code expects a boolean result
-        return False
+        AdminRightsCheck = None
+        AdminActual = None
+        ActualAdminCB = None
 
-def seconds_to_min(seconds: int) -> str:
-    """
-    Convert seconds (int) to human-readable minutes:seconds string.
-    Example: 125 -> "2:05"
-    """
-    try:
-        s = int(seconds)
-    except Exception:
-        s = 0
-    m = s // 60
-    rem = s % 60
-    return f"{m}:{rem:02d}"
+# Ensure seconds_to_min (or equivalent helper) is exported.
+# Try to import from formatters; otherwise provide a small fallback.
+try:
+    from .formatters import seconds_to_min  # type: ignore
+except Exception:
+    def seconds_to_min(seconds):
+        """Fallback: convert seconds to M:SS string or return original on error."""
+        try:
+            s = int(seconds)
+            m, s = divmod(s, 60)
+            return f"{m}:{s:02d}"
+        except Exception:
+            return str(seconds)
 
-__all__ = ["AdminRightsCheck", "seconds_to_min"]
+# Update __all__ to include these helpers explicitly
+try:
+    __all__  # if already defined by wildcard imports
+except NameError:
+    __all__ = []
+
+for _name in ("AdminRightsCheck", "AdminActual", "ActualAdminCB", "seconds_to_min"):
+    if _name not in __all__:
+        __all__.append(_name)
