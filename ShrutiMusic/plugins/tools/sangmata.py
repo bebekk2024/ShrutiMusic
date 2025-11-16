@@ -18,6 +18,33 @@ from ShrutiMusic import app, userbot
 from pyrogram import filters, raw
 from pyrogram.types import Message
 
+# --- Normalize BANNED_USERS to a set of ints to avoid "unhashable type: 'user'" ---
+def _normalize_banned_users(raw_banned):
+    """
+    Accepts:
+      - set/list of ints
+      - set/list of strings (usernames or numeric strings)
+      - set/list of pyrogram.types.User objects
+    Returns a set of ints (user ids). Non-convertible entries are ignored.
+    """
+    out = set()
+    if not raw_banned:
+        return out
+    for item in raw_banned:
+        try:
+            # If item is a User object from pyrogram, it has .id
+            uid = getattr(item, "id", None)
+            if uid is None:
+                # maybe it's numeric string or int
+                uid = int(item)
+            out.add(int(uid))
+        except Exception:
+            # ignore entries we cannot convert to int
+            continue
+    return out
+
+_BANNED_USER_IDS = _normalize_banned_users(getattr(config, "BANNED_USERS", set()))
+
 # --- Decorator compatibility (ONLY_ADMIN / ONLY_GROUP) ---
 try:
     from ShrutiMusic.utils.decorators import ONLY_ADMIN, ONLY_GROUP  # type: ignore
@@ -203,7 +230,14 @@ async def sangmata_cmd(client: app.__class__, message: Message):
         return await message.reply_text(">**Sangmata berhasil dinonaktifkan.**")
 
 
-@app.on_message(filters.command(["sg"]) & ~filters.user(config.BANNED_USERS))
+# Use normalized banned user ids in the filter to avoid TypeError
+if _BANNED_USER_IDS:
+    banned_filter = ~filters.user(_BANNED_USER_IDS)
+else:
+    # if empty, use a permissive filter (no banned users)
+    banned_filter = ~filters.user([])
+
+@app.on_message(filters.command(["sg"]) & banned_filter)
 async def history(client: app.__class__, message: Message):
     reply = message.reply_to_message
     try:
