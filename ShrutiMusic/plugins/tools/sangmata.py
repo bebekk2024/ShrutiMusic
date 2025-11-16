@@ -1,23 +1,133 @@
 import asyncio
 import random
+import importlib
 import config
 
+# Query group import (relative import from package root)
 from ...utils.query_group import sangmata_group
+
 from ShrutiMusic import app, userbot
 from pyrogram import filters, raw
-from ShrutiMusic.utils.query_group import sangmata_group
-from ShrutiMusic.utils.database import
 from ShrutiMusic.utils.decorators import ONLY_ADMIN, ONLY_GROUP
 from pyrogram.types import Message
 
 """
 SangMata plugin
 - Lokasi file: ShrutiMusic/plugins/sangmata.py
-- Disesuaikan untuk struktur paket ShrutiMusic (import dari paket).
-- Perbaikan filter BANNED_USERS: gunakan filters.user(...) karena config.BANNED_USERS
-  diinisialisasi sebagai set di __main__.py.
-- Hindari client.mention (tidak selalu tersedia) — gunakan message.from_user.mention.
+- Perbaikan:
+  * Hapus ketergantungan ke simbol `dB` (sesuai permintaan).
+  * Tambahkan shim `db` yang mencoba memakai nama-nama umum dari
+    ShrutiMusic.utils.database, lalu fallback ke in-memory async store.
+  * Perbaikan import / duplikasi import.
+  * Konsisten menggunakan reply_text / edit_text agar pyrogram API jelas.
 """
+
+# --- Database compatibility shim (tidak menggunakan simbol `dB`) ---
+class _FallbackDB:
+    def __init__(self):
+        # simple in-memory stores for users and vars
+        self._users = {}  # user_id -> {"depan": first, "belakang": last, "username": username}
+        self._vars = {}   # (chat_id, var_name) -> value
+
+    async def cek_userdata(self, user_id):
+        return user_id in self._users
+
+    async def add_userdata(self, user_id, first, last, username):
+        self._users[user_id] = {
+            "depan": first or "",
+            "belakang": last or "",
+            "username": username or "",
+        }
+        return True
+
+    async def get_userdata(self, user_id):
+        return self._users.get(user_id)
+
+    async def get_var(self, chat_id, name):
+        return self._vars.get((chat_id, name))
+
+    async def set_var(self, chat_id, name, value):
+        self._vars[(chat_id, name)] = value
+        return True
+
+    async def remove_var(self, chat_id, name):
+        return self._vars.pop((chat_id, name), None) is not None
+
+
+class _DBProxy:
+    def __init__(self, mod):
+        self._mod = mod
+        self._fallback = _FallbackDB()
+
+    async def _call(self, func, *args, **kwargs):
+        # call sync or async functions uniformly
+        res = func(*args, **kwargs)
+        if asyncio.iscoroutine(res):
+            return await res
+        return res
+
+    async def cek_userdata(self, user_id):
+        func = getattr(self._mod, "cek_userdata", None)
+        if callable(func):
+            return await self._call(func, user_id)
+        return await self._fallback.cek_userdata(user_id)
+
+    async def add_userdata(self, user_id, first, last, username):
+        func = getattr(self._mod, "add_userdata", None)
+        if callable(func):
+            return await self._call(func, user_id, first, last, username)
+        return await self._fallback.add_userdata(user_id, first, last, username)
+
+    async def get_userdata(self, user_id):
+        func = getattr(self._mod, "get_userdata", None)
+        if callable(func):
+            return await self._call(func, user_id)
+        return await self._fallback.get_userdata(user_id)
+
+    async def get_var(self, chat_id, name):
+        func = getattr(self._mod, "get_var", None)
+        if callable(func):
+            return await self._call(func, chat_id, name)
+        return await self._fallback.get_var(chat_id, name)
+
+    async def set_var(self, chat_id, name, value):
+        func = getattr(self._mod, "set_var", None)
+        if callable(func):
+            return await self._call(func, chat_id, name, value)
+        return await self._fallback.set_var(chat_id, name, value)
+
+    async def remove_var(self, chat_id, name):
+        func = getattr(self._mod, "remove_var", None)
+        if callable(func):
+            return await self._call(func, chat_id, name)
+        return await self._fallback.remove_var(chat_id, name)
+
+
+# Try to import the project's database module (absolute then relative), otherwise use fallback.
+_db_module = None
+for mod_path in (
+    "ShrutiMusic.utils.database",
+    "ShrutiMusic.utils.database.__init__",
+    # relative (in-package) import path (works when executing as package)
+    "ShrutiMusic.utils.database",
+):
+    try:
+        _db_module = importlib.import_module(mod_path)
+        break
+    except Exception:
+        _db_module = None
+
+if _db_module is None:
+    # try relative import (when package executed differently)
+    try:
+        _db_module = importlib.import_module("..utils.database", package=__package__)
+    except Exception:
+        _db_module = None
+
+# instantiate proxy (will use fallback if _db_module is None or missing functions)
+db = _DBProxy(_db_module or _FallbackDB())
+# --- end shim ---
+
 
 @app.on_message(
     filters.group & ~filters.bot & ~filters.via_bot,
@@ -37,11 +147,11 @@ async def sang_mata(client: app.__class__, message: Message):
     username = message.from_user.username or ""
 
     # Simpan user pertama kali
-    if not await dB.cek_userdata(user_id):
-        await dB.add_userdata(user_id, first, last, username)
+    if not await db.cek_userdata(user_id):
+        await db.add_userdata(user_id, first, last, username)
         return
 
-    data = await dB.get_userdata(user_id)
+    data = await db.get_userdata(user_id)
     if not data:
         return
 
@@ -50,7 +160,7 @@ async def sang_mata(client: app.__class__, message: Message):
     old_username = data.get("username", "")
 
     # Jika grup dinonaktifkan SangMata pada chat ini, skip
-    if await dB.get_var(message.chat.id, "SICEPU"):
+    if await db.get_var(message.chat.id, "SICEPU"):
         return
 
     changes = []
@@ -75,7 +185,7 @@ async def sang_mata(client: app.__class__, message: Message):
         await message.reply_text(msg, quote=True)
 
         # Perbarui data user di database
-        await dB.add_userdata(user_id, first, last, username)
+        await db.add_userdata(user_id, first, last, username)
 
 
 @app.on_message(filters.command("sangmata") & ~filters.bot & ~filters.via_bot)
@@ -95,15 +205,15 @@ async def sangmata_cmd(client: app.__class__, message: Message):
         )
     if state == "on":
         # Jika var SICEPU ada berarti dinonaktifkan, jadi hapus untuk mengaktifkan
-        if not await dB.get_var(message.chat.id, "SICEPU"):
+        if not await db.get_var(message.chat.id, "SICEPU"):
             return await message.reply_text(">**Sangmata sudah diaktifkan**")
-        await dB.remove_var(message.chat.id, "SICEPU")
+        await db.remove_var(message.chat.id, "SICEPU")
         return await message.reply_text(">**Sangmata berhasil diaktifkan.**")
     else:
         # Set var SICEPU untuk menonaktifkan
-        if await dB.get_var(message.chat.id, "SICEPU"):
+        if await db.get_var(message.chat.id, "SICEPU"):
             return await message.reply_text(">**Sangmata sudah dinonaktifkan**")
-        await dB.set_var(message.chat.id, "SICEPU", True)
+        await db.set_var(message.chat.id, "SICEPU", True)
         return await message.reply_text(">**Sangmata berhasil dinonaktifkan.**")
 
 
@@ -114,15 +224,15 @@ async def history(client: app.__class__, message: Message):
     try:
         target = reply.from_user.id if reply else message.text.split()[1]
     except (AttributeError, IndexError):
-        return await message.reply(">**Balas pesan pengguna atau berikan username pengguna.**")
+        return await message.reply_text(">**Balas pesan pengguna atau berikan username pengguna.**")
     try:
         user_id = (await client.get_users(target)).id
     except Exception:
         try:
             user_id = int(message.command[1])
         except Exception:
-            return await message.reply(">**ID pengguna tidak valid.**")
-    proses = await message.reply(">**Please wait...**")
+            return await message.reply_text(">**ID pengguna tidak valid.**")
+    proses = await message.reply_text(">**Please wait...**")
     bot_list = ["@Sangmata_bot", "@SangMata_beta_bot"]
     babu = userbot.clients[0]
     getbot = random.choice(bot_list)
@@ -134,7 +244,7 @@ async def history(client: app.__class__, message: Message):
     try:
         txt = await babu.send_message(getbot, user_id)
     except Exception as e:
-        await proses.edit(f"<b>❌ Gagal mengirim ke {getbot}: {e}</b>")
+        await proses.edit_text(f"<b>❌ Gagal mengirim ke {getbot}: {e}</b>")
         return
     await asyncio.sleep(4)
     try:
@@ -148,9 +258,9 @@ async def history(client: app.__class__, message: Message):
 
     async for name in babu.search_messages(getbot, limit=2):
         if not getattr(name, "text", None):
-            await message.reply(f"<b>❌ {getbot} ERROR, Silahkan kirim manual id pengguna ke {''.join(bot_list)}!</b>")
+            await message.reply_text(f"<b>❌ {getbot} ERROR, Silahkan kirim manual id pengguna ke {''.join(bot_list)}!</b>")
         else:
-            await message.reply(name.text)
+            await message.reply_text(name.text)
 
     try:
         user_info = await babu.resolve_peer(getbot)
