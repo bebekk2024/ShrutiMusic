@@ -22,7 +22,6 @@
 
 from .admins import *
 from .language import *
-from .query_group import *
 
 
 # ©️ Copyright Reserved - @NoxxOP  Nand Yaduwanshi
