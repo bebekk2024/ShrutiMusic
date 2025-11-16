@@ -17,25 +17,33 @@ try:
     from .logging import LOGGER  # local project logger (preferred)
 except Exception:
     import logging
+
     LOGGER = logging.getLogger(__name__)
     LOGGER.debug("Falling back to stdlib logger for ShrutiMusic package")
 
+# Initialize bootstrap names to None so later code can safely reference them
+dirr = git = None
+dbb = heroku = None
+Nand = None
+Userbot = None
+
 # Core imports (wrap init calls to avoid breaking import on failure)
 try:
-    from ShrutiMusic.core.bot import Nand
-    from ShrutiMusic.core.dir import dirr
-    from ShrutiMusic.core.git import git
-    from ShrutiMusic.core.userbot import Userbot
-    from ShrutiMusic.misc import dbb, heroku
+    # Use relative imports to keep package import paths consistent
+    from .core.bot import Nand
+    from .core.dir import dirr
+    from .core.git import git
+    from .core.userbot import Userbot
+    from .misc import dbb, heroku
 except Exception:
     LOGGER.exception("Failed to import core components; package may be partially broken")
-    # Re-raise if you want import-time failure; otherwise continue with fallback behavior
-    # raise
+    # leave names as None so subsequent code can check before using them
 
 # Run lightweight bootstrap steps; protected so failures won't break imports
-for _fn, _name in ((dirr, "dirr"), (git, "git"), (dbb, "dbb"), (heroku, "heroku")):
+_bootstrap_fns = ((dirr, "dirr"), (git, "git"), (dbb, "dbb"), (heroku, "heroku"))
+for _fn, _name in _bootstrap_fns:
     try:
-        if callable(_fn):
+        if _fn and callable(_fn):
             _fn()
             LOGGER.debug("Successfully ran %s()", _name)
     except Exception:
@@ -44,17 +52,23 @@ for _fn, _name in ((dirr, "dirr"), (git, "git"), (dbb, "dbb"), (heroku, "heroku"
 # Create primary application objects; protect with try/except to prevent hard crashes
 app: Optional[object] = None
 userbot: Optional[object] = None
-try:
-    app = Nand()
-    LOGGER.info("ShrutiMusic app initialized")
-except Exception:
-    LOGGER.exception("Failed to initialize app (Nand)")
+if Nand is not None:
+    try:
+        app = Nand()
+        LOGGER.info("ShrutiMusic app initialized")
+    except Exception:
+        LOGGER.exception("Failed to initialize app (Nand)")
+else:
+    LOGGER.debug("Nand class unavailable; app not initialized")
 
-try:
-    userbot = Userbot()
-    LOGGER.info("Userbot initialized")
-except Exception:
-    LOGGER.exception("Failed to initialize Userbot")
+if Userbot is not None:
+    try:
+        userbot = Userbot()
+        LOGGER.info("Userbot initialized")
+    except Exception:
+        LOGGER.exception("Failed to initialize Userbot")
+else:
+    LOGGER.debug("Userbot class unavailable; userbot not initialized")
 
 # Import and instantiate platform API wrappers.
 # Wrap in try/except to avoid circular import or missing class issues.
@@ -71,13 +85,13 @@ try:
     )
 
     try:
-        Apple = AppleAPI()
-        Carbon = CarbonAPI()
-        SoundCloud = SoundAPI()
-        Spotify = SpotifyAPI()
-        Resso = RessoAPI()
-        Telegram = TeleAPI()
-        YouTube = YouTubeAPI()
+        Apple = AppleAPI() if "AppleAPI" in globals() else None
+        Carbon = CarbonAPI() if "CarbonAPI" in globals() else None
+        SoundCloud = SoundAPI() if "SoundAPI" in globals() else None
+        Spotify = SpotifyAPI() if "SpotifyAPI" in globals() else None
+        Resso = RessoAPI() if "RessoAPI" in globals() else None
+        Telegram = TeleAPI() if "TeleAPI" in globals() else None
+        YouTube = YouTubeAPI() if "YouTubeAPI" in globals() else None
         LOGGER.info("Platform API wrappers initialized")
     except Exception:
         LOGGER.exception("Failed to instantiate one or more platform API wrappers")
