@@ -1,7 +1,6 @@
 gTTS
 aiofiles
 aiohttp
-asyncio
 beautifulsoup4
 dnspython
 ffmpeg-python
@@ -29,7 +28,9 @@ unidecode
 uvloop>=0.17.0
 
 # --- Hanya salah satu youtube-search/YouTubeSearchPython yang boleh, pakai versi terbaru:
-youtubesearchpython
+# Use the correct PyPI package name (dashes). If you cannot upgrade to Python 3.11,
+# pin below to avoid 2.3.x+ releases which require Python >=3.11.
+youtube-search-python<2.3.0
 
 # yt-dlp langsung dari github upstream agar selalu up to date:
 git+https://github.com/yt-dlp/yt-dlp.git
@@ -39,6 +40,3 @@ git+https://github.com/yt-dlp/yt-dlp.git
 # 🔗 GitHub : https://github.com/NoxxOP/ShrutiMusic
 # 📢 Telegram Channel : https://t.me/ShrutiBots
 # ===========================================
-
-
-
